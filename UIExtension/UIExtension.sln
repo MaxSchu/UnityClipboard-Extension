@@ -1,6 +1,8 @@
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2008
 
+Project("{D5DBB864-83D4-1463-5A72-97BD75B8803D}") = "UIExtension", "Assembly-CSharp.csproj", "{BB829ED4-2F8C-3A87-5846-71EAEC571EBC}"
+EndProject
 Project("{D5DBB864-83D4-1463-5A72-97BD75B8803D}") = "UIExtension", "Assembly-CSharp-Editor.csproj", "{FA3CB779-DF23-DC4E-E77C-BBE311AC4809}"
 EndProject
 Global
@@ -9,6 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BB829ED4-2F8C-3A87-5846-71EAEC571EBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB829ED4-2F8C-3A87-5846-71EAEC571EBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB829ED4-2F8C-3A87-5846-71EAEC571EBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB829ED4-2F8C-3A87-5846-71EAEC571EBC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FA3CB779-DF23-DC4E-E77C-BBE311AC4809}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FA3CB779-DF23-DC4E-E77C-BBE311AC4809}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA3CB779-DF23-DC4E-E77C-BBE311AC4809}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -17,7 +23,7 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-		GlobalSection(MonoDevelopProperties) = preSolution
+																						GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = Assembly-CSharp.csproj
 		Policies = $0
 		$0.TextStylePolicy = $1
