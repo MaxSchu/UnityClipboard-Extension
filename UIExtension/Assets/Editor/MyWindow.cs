@@ -10,17 +10,23 @@ public class MyWindow : EditorWindow
     private UnityEngine.Object[] objectArray;
     private int width;
     private int height;
-    private int clickedBoxId = -1;
+    private int rightClickedBoxId;
+    private int leftClickedBoxId;
     private int boxWidth = 100;
     private int boxHeight = 100;
     private GUIStyle boxStyle;
     private Vector2 scrollPosition;
 
-    bool dragStarted = false;
-    int dragStartedAt = -1;
+    bool dragStarted;
+    int dragStartedAt;
 
     public void OnEnable()
     {
+        rightClickedBoxId = -1;
+        leftClickedBoxId = -1;
+        dragStarted = false;
+        dragStartedAt = -1;
+
         InitUI();
         InitArray();
         LoadPrefs();
@@ -77,13 +83,20 @@ public class MyWindow : EditorWindow
                     GUI.DrawTexture(boxRect, EditorGUIUtility.whiteTexture);
                 }
 
+                if (leftClickedBoxId == boxCount)
+                {
+                    string borderPath = "Assets/Editor/EditorAssets/border.png";   
+                    Texture2D border = (Texture2D)AssetDatabase.LoadAssetAtPath(borderPath, typeof(Texture2D));
+                    GUI.DrawTexture(boxRect, border);
+                }
+
                 OnDrag(evt, boxRect, boxCount);
                 OnDrop(evt, boxRect, boxCount);
                 OnRightClick(evt, boxRect, boxCount);
+                OnLeftClick(evt, boxRect, boxCount);
 
                 if (evt.type == EventType.DragExited)
                 {
-                    Debug.Log("Drag Exit!");
                     dragStarted = false;
                     dragStartedAt = -1;
                 }
@@ -140,6 +153,7 @@ public class MyWindow : EditorWindow
                     }
                     dragStartedAt = -1;
                     dragStarted = false;
+                    leftClickedBoxId = number;
                     objectArray[number] = DragAndDrop.objectReferences[0];
                 }
             }
@@ -150,7 +164,7 @@ public class MyWindow : EditorWindow
     {        
         if (evt.type == EventType.MouseDown && evt.button == 1 && boxRect.Contains(evt.mousePosition))
         {
-            clickedBoxId = boxCount;
+            rightClickedBoxId = boxCount;
             GenericMenu menu = new GenericMenu();
 
             menu.AddItem(new GUIContent("DeleteItem"), false, DeleteObject);
@@ -164,12 +178,24 @@ public class MyWindow : EditorWindow
         }
     }
 
+    private void OnLeftClick(Event evt, Rect boxRect, int boxCount)
+    {
+        if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains(evt.mousePosition))
+        {
+            UnityEngine.Object obj = objectArray[boxCount];
+            UnityEditor.Selection.activeObject = obj;
+            leftClickedBoxId = boxCount;
+            evt.Use();
+        }
+        
+    }
+
     private void DeleteObject()
     {
-        if (clickedBoxId >= 0)
+        if (rightClickedBoxId >= 0)
         {
-            objectArray[clickedBoxId] = null;
-            clickedBoxId = -1;
+            objectArray[rightClickedBoxId] = null;
+            rightClickedBoxId = -1;
         }        
     }
 
@@ -187,7 +213,9 @@ public class MyWindow : EditorWindow
             {
                 string path = AssetDatabase.GetAssetPath(obj);
                 EditorPrefs.SetString("" + i, path);
-                Debug.Log("Safing: " + path);
+            } else
+            {
+                EditorPrefs.DeleteKey("" + i);
             }
         }
     }
