@@ -7,13 +7,16 @@ using System;
 public class MyWindow : EditorWindow
 
 {
-    private UnityEngine.Object[] objectArray;
-    private int width;
-    private int height;
+	private UnityEngine.Color rectColor = new UnityEngine.Color (0.5, 0.5, 0.5, 1);
+	private int width = 14;
+	private int height = 2;
+	private int boxWidth = 50;
+	private int boxHeight = 50;
+
+    private UnityEngine.Object[] objectArray;    
     private int rightClickedBoxId;
     private int leftClickedBoxId;
-    private int boxWidth = 100;
-    private int boxHeight = 100;
+    
     private GUIStyle boxStyle;
     private Vector2 scrollPosition;
 
@@ -39,8 +42,6 @@ public class MyWindow : EditorWindow
 
     private void InitUI()
     {
-        width = 5;
-        height = 5;
         boxStyle = new GUIStyle();
         boxStyle.margin = new RectOffset(5, 5, 5, 5);
     }
