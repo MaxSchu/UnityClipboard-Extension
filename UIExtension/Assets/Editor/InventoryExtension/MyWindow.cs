@@ -7,48 +7,51 @@ using System;
 public class MyWindow : EditorWindow
 
 {
-	private UnityEngine.Color rectColor = new UnityEngine.Color (0.5, 0.5, 0.5, 1);
-	private int width = 14;
-	private int height = 2;
-	private int boxWidth = 50;
-	private int boxHeight = 50;
-
-    private UnityEngine.Object[] objectArray;    
+	private UnityEngine.Color emptyBoxColor = Color.grey;
+	private int width = 4;
+	private int height = 7;
+	private int boxWidth = 80;
+	private int boxHeight = 80;
+	   
     private int rightClickedBoxId;
     private int leftClickedBoxId;
     
     private GUIStyle boxStyle;
     private Vector2 scrollPosition;
 
-    bool dragStarted;
-    int dragStartedAt;
+	private UnityEngine.Object[] objectArray;
+
+    private bool dragStarted;
+    private int dragStartedAt;
+
+	private InventoryController inventoryController;
 
     public void OnEnable()
     {
+		inventoryController = new InventoryController(width, height);
+		objectArray = inventoryController.GetActivePage().GetObjectArray ();
         rightClickedBoxId = -1;
         leftClickedBoxId = -1;
         dragStarted = false;
         dragStartedAt = -1;
 
         InitUI();
-        InitArray();
-        LoadPrefs();
     }
 
     public void OnDisable()
     {
-        SafePrefs();
     }
+
+	public void OnPageChanged() 
+	{
+		inventoryController.SetActivePage();
+		objectArray = inventoryController.GetActivePage().GetObjectArray();
+	}
 
     private void InitUI()
     {
         boxStyle = new GUIStyle();
-        boxStyle.margin = new RectOffset(5, 5, 5, 5);
-    }
-
-    private void InitArray()
-    {
-        objectArray = new UnityEngine.Object[width * height];
+        boxStyle.margin = new RectOffset(2, 2, 2, 2);
     }
 
     [MenuItem("Window/PrefabManager")]
@@ -81,7 +84,11 @@ public class MyWindow : EditorWindow
                 }
                 else
                 {
-                    GUI.DrawTexture(boxRect, EditorGUIUtility.whiteTexture);
+					Texture2D emptyBoxTexture = new Texture2D(1,1);
+					emptyBoxTexture.SetPixel(1,1,emptyBoxColor);
+					emptyBoxTexture.wrapMode = TextureWrapMode.Repeat;
+					emptyBoxTexture.Apply();
+                    GUI.DrawTexture(boxRect, emptyBoxTexture);
                 }
 
                 if (leftClickedBoxId == boxCount)
@@ -109,8 +116,7 @@ public class MyWindow : EditorWindow
         GUILayout.EndScrollView();
         if (GUILayout.Button("Clear All"))
         {
-            ClearPrefs();
-            InitArray();
+            inventoryController.ClearPrefs();
             dragStarted = false;
         }
     }
@@ -195,7 +201,7 @@ public class MyWindow : EditorWindow
     {
         if (rightClickedBoxId >= 0)
         {
-            objectArray[rightClickedBoxId] = null;
+
             rightClickedBoxId = -1;
         }        
     }
@@ -205,39 +211,5 @@ public class MyWindow : EditorWindow
         Debug.Log("COnteext!");
     }
 
-    private void SafePrefs()
-    {
-        UnityEngine.Object obj;
-        for (int i = 0; i < width * height; i++)
-        {
-            if ((obj = objectArray[i]) != null)
-            {
-                string path = AssetDatabase.GetAssetPath(obj);
-                EditorPrefs.SetString("" + i, path);
-            } else
-            {
-                EditorPrefs.DeleteKey("" + i);
-            }
-        }
-    }
-
-    private void LoadPrefs()
-    {
-        for (int i = 0; i < width * height; i++)
-        {
-            String objPath;
-            if ((objPath = EditorPrefs.GetString("" + i)) != "")
-            {
-                objectArray[i] = AssetDatabase.LoadAssetAtPath(objPath, typeof(UnityEngine.Object));
-            }
-        }
-    }
-
-    private void ClearPrefs()
-    {
-        for (int i = 0; i < width * height; i++)
-        {
-            EditorPrefs.DeleteKey("" + i);
-        }
-    }
+    
 }
