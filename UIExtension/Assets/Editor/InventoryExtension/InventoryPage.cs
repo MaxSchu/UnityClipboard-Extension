@@ -19,6 +19,11 @@ public class InventoryPage {
 		objectArray [pos] = obj;
 	}
 
+	public void SetPageName(string pageName) 
+	{
+		this.pageName = pageName;
+	}
+
 	public void DeleteObject(int pos)
 	{
 		objectArray [pos] = null;

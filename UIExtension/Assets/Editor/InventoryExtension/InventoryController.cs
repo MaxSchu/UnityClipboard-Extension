@@ -2,11 +2,11 @@
 using UnityEditor;
 using System.Collections;
 
-public class InventoryController : MonoBehaviour{
+public class InventoryController {
 	public static string pageCountKey = "page_count";
 
 	private ArrayList pageList = new ArrayList();
-	private InventoryPage activePage;
+	private int activePageId;
 	private int pageCount = 0;
 
 	private int height, width;
@@ -18,34 +18,68 @@ public class InventoryController : MonoBehaviour{
 		LoadPrefs ();
 	}
 
-	public void AddPage(InventoryPage page) 
+	public void AddPage() 
 	{
-		pageCount++;
+		InventoryPage page = new InventoryPage ("page" + pageCount, new UnityEngine.Object[width*height], pageCount);
 		pageList.Add (page);
+		pageCount++;
+		activePageId = page.GetPageId();
 	}
 
-	public void DeletePage(int pageId) 
+	private void LoadPage(InventoryPage page) 
+	{
+		pageList.Add (page);
+		pageCount++;
+	}
+
+	public void DeletePage() 
 	{
 		foreach (InventoryPage page in pageList) 
 		{
-			if(page.GetPageId() == pageId) 
+			if(page.GetPageId() == activePageId) 
 			{
+				int index = pageList.IndexOf(page);
 				pageList.Remove(page);
+				if(pageList.Count == 0) 
+				{
+					AddPage();
+				}else 
+				{
+					activePageId = ((InventoryPage) pageList[index]).GetPageId();
+				}
 			}	
 		}
 	}
 
-	public InventoryPage GetActivePage() 
+	public void DeleteObject(int position) 
 	{
-		return activePage;
+		GetActivePage ().DeleteObject (position);
 	}
 
-	public void SetActivePage()
+	public void SetActivePage(int num)
 	{
+		int index = pageList.IndexOf (GetActivePage ());
+		Debug.Log ("index of active page: " + index + " , Amount of pages :" + pageList.Count);
+		if ((index + num) >= 0 && (index + num) <= pageList.Count-1) 
+		{
+			Debug.Log ("new activepage setted");
+			activePageId = ((InventoryPage)pageList [index + num]).GetPageId ();
+		}
+	}
 
+	public InventoryPage GetActivePage()
+	{
+		foreach (InventoryPage page in pageList) 
+		{
+			if(page.GetPageId() == activePageId) 
+			{
+				return (InventoryPage) pageList[activePageId];
+			}
+		}
+		return null;
 	}
 	
-	private void SafePrefs()
+	public void SafePrefs()
 	{
 		UnityEngine.Object[] objectArray;
 		UnityEngine.Object obj;
@@ -74,10 +108,10 @@ public class InventoryController : MonoBehaviour{
 	private void LoadPrefs()
 	{
 		int pageAmount = EditorPrefs.GetInt (pageCountKey);
-		if (pageAmount == null) 
+		if (pageAmount == 0) 
 		{
-			activePage = new InventoryPage("Page1", new UnityEngine.Object[width*height], 0);
-			AddPage( activePage);
+			Debug.Log ("Prefs Empty. Loaded new empty page.");
+			AddPage ();
 		} else 
 		{
 			for (int pageId = 0; pageId < pageAmount; pageId++) 
@@ -92,10 +126,11 @@ public class InventoryController : MonoBehaviour{
 						objectArray[i] = AssetDatabase.LoadAssetAtPath(objPath, typeof(UnityEngine.Object));
 					}
 				}
-				AddPage (new InventoryPage(EditorPrefs.GetString("pageName"+ pageId), objectArray, pageId));
+				LoadPage (new InventoryPage(EditorPrefs.GetString("pageName"+ pageId), objectArray, pageId));
 			}
-			activePage = (InventoryPage) pageList[0];
+
 		}
+		activePageId = ((InventoryPage) pageList[0]).GetPageId();
 	}
 	
 	public void ClearPrefs()
@@ -109,5 +144,8 @@ public class InventoryController : MonoBehaviour{
 			EditorPrefs.DeleteKey("pageName" + pageId);
 		}
 		EditorPrefs.DeleteKey(pageCountKey);
+		pageList = new ArrayList ();
+		pageCount = 0;
+		AddPage ();
 	}	
 }

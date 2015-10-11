@@ -18,18 +18,20 @@ public class MyWindow : EditorWindow
     
     private GUIStyle boxStyle;
     private Vector2 scrollPosition;
-
-	private UnityEngine.Object[] objectArray;
-
+	
     private bool dragStarted;
     private int dragStartedAt;
 
 	private InventoryController inventoryController;
+	private UnityEngine.Object[] objectArray;
+	private string pageName;
 
     public void OnEnable()
     {
+		Debug.Log ("OnEnable");
 		inventoryController = new InventoryController(width, height);
 		objectArray = inventoryController.GetActivePage().GetObjectArray ();
+		pageName = inventoryController.GetActivePage().GetPageName ();
         rightClickedBoxId = -1;
         leftClickedBoxId = -1;
         dragStarted = false;
@@ -40,12 +42,14 @@ public class MyWindow : EditorWindow
 
     public void OnDisable()
     {
+		inventoryController.SafePrefs ();
     }
 
 	public void OnPageChanged() 
 	{
-		inventoryController.SetActivePage();
-		objectArray = inventoryController.GetActivePage().GetObjectArray();
+		objectArray = inventoryController.GetActivePage().GetObjectArray ();
+		pageName = inventoryController.GetActivePage().GetPageName ();
+		this.Repaint ();
 	}
 
     private void InitUI()
@@ -68,7 +72,9 @@ public class MyWindow : EditorWindow
 
         int boxCount = 0;
 
-        scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUIStyle.none);
+		GUILayout.Label (pageName);
+
+        //scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUIStyle.none);
         GUILayout.BeginHorizontal(GUILayout.Width(width * boxWidth));
         for (int i = 0; i < width; i++)
         {
@@ -93,9 +99,9 @@ public class MyWindow : EditorWindow
 
                 if (leftClickedBoxId == boxCount)
                 {
-                    string borderPath = "Assets/Editor/EditorAssets/border.png";   
-                    Texture2D border = (Texture2D)AssetDatabase.LoadAssetAtPath(borderPath, typeof(Texture2D));
-                    GUI.DrawTexture(boxRect, border);
+					string borderPath = "Assets/Editor/EditorAssets/border.png";   
+					Texture2D border = (Texture2D)AssetDatabase.LoadAssetAtPath(borderPath, typeof(Texture2D));
+					GUI.DrawTexture(boxRect, border);
                 }
 
                 OnDrag(evt, boxRect, boxCount);
@@ -113,24 +119,61 @@ public class MyWindow : EditorWindow
             GUILayout.EndVertical();
         }
         GUILayout.EndHorizontal();
-        GUILayout.EndScrollView();
-        if (GUILayout.Button("Clear All"))
-        {
-            inventoryController.ClearPrefs();
-            dragStarted = false;
-        }
+        //GUILayout.EndScrollView();
+
+		initControls ();
     }
+
+	private void initControls() 
+	{
+		GUILayout.BeginHorizontal ();
+		if (GUILayout.Button("Previous Page"))
+		{
+			inventoryController.SetActivePage(-1);
+			OnPageChanged();
+		}
+		if (GUILayout.Button("-"))
+		{
+			inventoryController.DeletePage();
+			OnPageChanged();
+		}
+		string textFieldString = GUILayout.TextField (pageName, 25);
+		if (textFieldString != pageName) 
+		{
+			pageName = textFieldString;
+			inventoryController.GetActivePage().SetPageName(pageName);
+			OnPageChanged();
+		}
+		if (GUILayout.Button("+"))
+		{
+			inventoryController.AddPage();
+			OnPageChanged();
+		}
+		if (GUILayout.Button("Next Page"))
+		{
+			inventoryController.SetActivePage(1);
+			OnPageChanged();
+		}
+		GUILayout.EndHorizontal ();
+		if (GUILayout.Button("Clear All"))
+		{
+			inventoryController.ClearPrefs();
+			dragStarted = false;
+			OnPageChanged();
+		}
+	}
 
     private void OnDrag(Event evt, Rect boxRect, int number)
     {
         if (evt.type == EventType.MouseDrag && boxRect.Contains(evt.mousePosition) && dragStarted == false && objectArray[number] != null)
         {
+			Debug.Log ("OnDrag");
             UnityEngine.Object[] dragArray = new UnityEngine.Object[1];
             dragArray[0] = objectArray[number];
             DragAndDrop.PrepareStartDrag();
-            DragAndDrop.StartDrag("drag from window");
-            DragAndDrop.objectReferences = dragArray;
-            DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+			DragAndDrop.objectReferences = dragArray;
+            DragAndDrop.StartDrag(dragArray[0].ToString());
+			DragAndDrop.visualMode = DragAndDropVisualMode.Generic;
             dragStarted = true;
             dragStartedAt = number;
         }
@@ -141,6 +184,7 @@ public class MyWindow : EditorWindow
         bool isAccepted = false;
         if (evt.type == EventType.DragUpdated && boxRect.Contains(evt.mousePosition) || evt.type == EventType.DragPerform && boxRect.Contains(evt.mousePosition))
         {
+			Debug.Log ("DragUpdate / DragPerform");
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
 
             if (evt.type == EventType.DragPerform)
@@ -152,6 +196,7 @@ public class MyWindow : EditorWindow
 
             if (isAccepted)
             {
+				Debug.Log ("OnDrop");
                 if (DragAndDrop.objectReferences.Length == 1)
                 {
                     if (dragStarted == true)
@@ -171,6 +216,7 @@ public class MyWindow : EditorWindow
     {        
         if (evt.type == EventType.MouseDown && evt.button == 1 && boxRect.Contains(evt.mousePosition))
         {
+			Debug.Log ("OnRightClick");
             rightClickedBoxId = boxCount;
             GenericMenu menu = new GenericMenu();
 
@@ -189,8 +235,10 @@ public class MyWindow : EditorWindow
     {
         if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains(evt.mousePosition))
         {
+			Debug.Log ("OnLeftClick");
             UnityEngine.Object obj = objectArray[boxCount];
-            UnityEditor.Selection.activeObject = obj;
+			UnityEditor.Selection.activeObject = obj;
+
             leftClickedBoxId = boxCount;
             evt.Use();
         }
@@ -199,11 +247,8 @@ public class MyWindow : EditorWindow
 
     private void DeleteObject()
     {
-        if (rightClickedBoxId >= 0)
-        {
-
-            rightClickedBoxId = -1;
-        }        
+		inventoryController.DeleteObject (rightClickedBoxId);
+		rightClickedBoxId = -1;
     }
 
     private void Callback()
