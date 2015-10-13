@@ -44,4 +44,12 @@ public class InventoryPage {
 		return pageName;
 	}
 
+    public void ClearPage()
+    {
+        for(int i = 0; i < objectArray.Length; i++)
+        {
+            objectArray[i] = null;
+        }
+    }
+
 }

@@ -34,22 +34,33 @@ public class InventoryController {
 
 	public void DeletePage() 
 	{
-		foreach (InventoryPage page in pageList) 
-		{
-			if(page.GetPageId() == activePageId) 
-			{
-				int index = pageList.IndexOf(page);
-				pageList.Remove(page);
-				if(pageList.Count == 0) 
-				{
-					AddPage();
-				}else 
-				{
-					activePageId = ((InventoryPage) pageList[index]).GetPageId();
-				}
-			}	
-		}
-	}
+        for (int i = pageList.Count - 1; i >= 0; i--)
+        {
+            InventoryPage page = (InventoryPage)pageList[i];
+            if (page.GetPageId() == activePageId)
+            {                
+                if (pageList.Count == 1)
+                {
+                    ((InventoryPage)pageList[0]).ClearPage();
+                    return;
+                }
+                else
+                {
+                    int index = pageList.IndexOf(page);
+                    DeletePageFromPrefs(page);
+                    pageList.Remove(page);
+                    if (index >= pageList.Count)
+                    {
+                        index--;
+                    }
+                    Debug.Log("Page deleted, index: " + index + "Listcount :" + pageList.Count);
+                    activePageId = ((InventoryPage)pageList[index]).GetPageId();
+                    Debug.Log("hurrdudrudrudruuruururruru");
+                    return;
+                }
+            }
+        }
+    }
 
 	public void DeleteObject(int position) 
 	{
@@ -59,21 +70,20 @@ public class InventoryController {
 	public void SetActivePage(int num)
 	{
 		int index = pageList.IndexOf (GetActivePage ());
-		Debug.Log ("index of active page: " + index + " , Amount of pages :" + pageList.Count);
 		if ((index + num) >= 0 && (index + num) <= pageList.Count-1) 
 		{
-			Debug.Log ("new activepage setted");
 			activePageId = ((InventoryPage)pageList [index + num]).GetPageId ();
 		}
 	}
 
 	public InventoryPage GetActivePage()
 	{
-		foreach (InventoryPage page in pageList) 
+		for(int i = 0; i < pageList.Count; i++)
 		{
+            InventoryPage page = (InventoryPage)pageList[i];
 			if(page.GetPageId() == activePageId) 
 			{
-				return (InventoryPage) pageList[activePageId];
+                return page;
 			}
 		}
 		return null;
@@ -132,6 +142,16 @@ public class InventoryController {
 		}
 		activePageId = ((InventoryPage) pageList[0]).GetPageId();
 	}
+
+    private void DeletePageFromPrefs( InventoryPage page)
+    {
+        int pageId = page.GetPageId();
+        for ( int i = 0; i < page.GetObjectArray().Length; i++)
+        {
+            EditorPrefs.DeleteKey("" + pageId + "." + i);
+        }
+        EditorPrefs.DeleteKey("pageName" + pageId);
+    }
 	
 	public void ClearPrefs()
 	{
@@ -147,5 +167,5 @@ public class InventoryController {
 		pageList = new ArrayList ();
 		pageCount = 0;
 		AddPage ();
-	}	
+	}
 }
