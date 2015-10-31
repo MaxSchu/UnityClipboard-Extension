@@ -2,19 +2,19 @@
 using System.Collections;
 
 public class InventoryPage {
-	private UnityEngine.Object[] objectArray;
+	private InventoryObject[] objectArray;
 	private int pageId;
 
 	public string pageName;
 
-	public InventoryPage(string pageName, UnityEngine.Object[] objectArray, int pageId) 
+	public InventoryPage(string pageName, InventoryObject[] objectArray, int pageId) 
 	{
 		this.pageName = pageName;
 		this.objectArray = objectArray;
 		this.pageId = pageId;
 	}
 
-	public void AddObject(UnityEngine.Object obj, int pos) 
+	public void AddObject(InventoryObject obj, int pos) 
 	{
 		objectArray [pos] = obj;
 	}
@@ -26,10 +26,15 @@ public class InventoryPage {
 
 	public void DeleteObject(int pos)
 	{
-		objectArray [pos] = null;
+		objectArray [pos] = null;       
 	}
 
-	public UnityEngine.Object[] GetObjectArray() 
+    public void DecrementStack(int pos)
+    {
+        objectArray[pos].stackSize--;      
+    }
+
+	public InventoryObject[] GetObjectArray() 
 	{
 		return objectArray;
 	}
@@ -48,8 +53,10 @@ public class InventoryPage {
     {
         for(int i = 0; i < objectArray.Length; i++)
         {
-            objectArray[i] = null;
+            objectArray[i] = null;           
         }
     }
+
+
 
 }

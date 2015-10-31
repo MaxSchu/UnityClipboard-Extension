@@ -4,6 +4,9 @@ using System.Collections;
 
 public class InventoryController {
 	public static string pageCountKey = "page_count";
+    public static bool stackingEnabled = true;
+    public static int standardStackSize = 1;
+    public static KeyCode splitStackKey = KeyCode.LeftAlt;
 
 	private ArrayList pageList = new ArrayList();
 	private int activePageId;
@@ -20,7 +23,7 @@ public class InventoryController {
 
 	public void AddPage() 
 	{
-		InventoryPage page = new InventoryPage ("page" + pageCount, new UnityEngine.Object[width*height], pageCount);
+		InventoryPage page = new InventoryPage ("page" + pageCount, new InventoryObject[width*height], pageCount);
 		pageList.Add (page);
 		pageCount++;
 		activePageId = page.GetPageId();
@@ -53,9 +56,7 @@ public class InventoryController {
                     {
                         index--;
                     }
-                    Debug.Log("Page deleted, index: " + index + "Listcount :" + pageList.Count);
                     activePageId = ((InventoryPage)pageList[index]).GetPageId();
-                    Debug.Log("hurrdudrudrudruuruururruru");
                     return;
                 }
             }
@@ -91,8 +92,8 @@ public class InventoryController {
 	
 	public void SafePrefs()
 	{
-		UnityEngine.Object[] objectArray;
-		UnityEngine.Object obj;
+        InventoryObject[] objectArray;
+        InventoryObject obj;
 		int pageId;
 
 		foreach (InventoryPage page in pageList) 
@@ -103,12 +104,17 @@ public class InventoryController {
 			{
 				if ((obj = objectArray[i]) != null)
 				{
-					string path = AssetDatabase.GetAssetPath(obj);
+					string path = AssetDatabase.GetAssetPath(obj.obj);
 					EditorPrefs.SetString("" + pageId + "." + i, path);
+                    if(stackingEnabled)
+                    {
+                        EditorPrefs.SetInt("Stack" + pageId + "." + i, obj.stackSize);
+                    }
 				} else
 				{
 					EditorPrefs.DeleteKey("" + pageId + "." + i);
-				}
+                    EditorPrefs.DeleteKey("Stack" + pageId + "." + i);
+                }
 			}
 			EditorPrefs.SetString("pageName" + page.GetPageId(), page.GetPageName());
 		}
@@ -126,15 +132,20 @@ public class InventoryController {
 		{
 			for (int pageId = 0; pageId < pageAmount; pageId++) 
 			{
-				UnityEngine.Object[] objectArray = new UnityEngine.Object[width * height];
+                InventoryObject[] objectArray = new InventoryObject[width * height];
 				
 				for (int i = 0; i < width * height; i++)
 				{
 					string objPath;
 					if ((objPath = EditorPrefs.GetString("" + pageId + "." + i)) != "")
 					{
-						objectArray[i] = AssetDatabase.LoadAssetAtPath(objPath, typeof(UnityEngine.Object));
-					}
+                        int stackSize = 0;
+                        if(stackingEnabled)
+                        {
+                            stackSize = EditorPrefs.GetInt("Stack" + pageId + "." + i);
+                        }
+                        objectArray[i] = new InventoryObject(AssetDatabase.LoadAssetAtPath(objPath, typeof(UnityEngine.Object)), stackSize);
+                    }
 				}
 				LoadPage (new InventoryPage(EditorPrefs.GetString("pageName"+ pageId), objectArray, pageId));
 			}
@@ -149,6 +160,7 @@ public class InventoryController {
         for ( int i = 0; i < page.GetObjectArray().Length; i++)
         {
             EditorPrefs.DeleteKey("" + pageId + "." + i);
+            EditorPrefs.DeleteKey("Stack" + pageId + "." + i);
         }
         EditorPrefs.DeleteKey("pageName" + pageId);
     }
@@ -160,7 +172,8 @@ public class InventoryController {
 			for(int i = 0; i < width*height; i++)
 			{
 				EditorPrefs.DeleteKey("" + pageId + "." + i);
-			}
+                EditorPrefs.DeleteKey("Stack" + pageId + "." + i);
+            }
 			EditorPrefs.DeleteKey("pageName" + pageId);
 		}
 		EditorPrefs.DeleteKey(pageCountKey);
