@@ -3,10 +3,10 @@ using UnityEditor;
 using System.Collections;
 
 public class InventoryController {
-	public static string pageCountKey = "page_count";
-    public static bool stackingEnabled = true;
-    public static int standardStackSize = 1;
-    public static KeyCode splitStackKey = KeyCode.LeftAlt;
+	public readonly static string pageCountKey = "page_count";
+    public readonly static bool stackingEnabled = true;
+    public readonly static int standardStackSize = 1;
+    public readonly static KeyCode splitStackKey = KeyCode.LeftAlt;
 
 	private ArrayList pageList = new ArrayList();
 	private int activePageId;
@@ -62,11 +62,6 @@ public class InventoryController {
             }
         }
     }
-
-	public void DeleteObject(int position) 
-	{
-		GetActivePage ().DeleteObject (position);
-	}
 
 	public void SetActivePage(int num)
 	{

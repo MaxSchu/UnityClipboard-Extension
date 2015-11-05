@@ -31,13 +31,12 @@ public class InventoryWindow : EditorWindow
     private GUIStyle boxStyle;
     private GUIStyle boxLabelStyle;
     private GUIStyle stackLabelStyle;
-    private Vector2 scrollPosition;
 
-    private bool dragStarted;    
+    private bool dragStartedInWindow;    
     private int dragStartedAt;
 
     private InventoryController inventoryController;
-    private InventoryObject[] objectArray;
+    private InventoryPage activePage;
     private string pageName;
 
     private bool stackSplitKeyPressed = false;
@@ -53,12 +52,14 @@ public class InventoryWindow : EditorWindow
 
     public void OnEnable()
     {
+        SceneView.onSceneGUIDelegate += OnSceneGUI;
         inventoryController = new InventoryController(width, height);
-        objectArray = inventoryController.GetActivePage().GetObjectArray();
+        activePage = inventoryController.GetActivePage();
         pageName = inventoryController.GetActivePage().GetPageName();
         rightClickedBoxId = -1;
         leftClickedBoxId = -1;
-        dragStarted = false;
+        Debug.Log("drag started set to false - OnEnable");
+        dragStartedInWindow = false;
         dragStartedAt = -1;
 
         InitStyles();
@@ -71,8 +72,8 @@ public class InventoryWindow : EditorWindow
 
     public void OnPageChanged()
     {
-        objectArray = inventoryController.GetActivePage().GetObjectArray();
-        pageName = inventoryController.GetActivePage().GetPageName();
+        activePage = inventoryController.GetActivePage();
+        pageName = activePage.GetPageName();
         this.Repaint();
     }
 
@@ -98,14 +99,12 @@ public class InventoryWindow : EditorWindow
         var window = GetWindow(typeof(InventoryWindow));
         window.minSize = new Vector2(windowWidth, windowHeight);
         window.maxSize = new Vector2(windowWidth, windowHeight);
-
         window.titleContent.text = "Inventory";
     }
 
     void OnGUI()
     {
-        var evt = Event.current;        
-
+        var evt = Event.current;      
         int boxCount = 0;
 
         GUILayout.Label(pageName);
@@ -117,19 +116,28 @@ public class InventoryWindow : EditorWindow
             for (int j = 0; j < height; j++)
             {
                 var boxRect = GUILayoutUtility.GetRect(GUIContent.none, boxStyle, GUILayout.Width(boxWidth), GUILayout.Height(boxHeight));
+                InventoryObject invObject = activePage.GetInventoryObjectAt(boxCount);
 
-                if (objectArray[boxCount] != null)
+                if (invObject != null)
                 {
-                    if(objectArray[boxCount].obj != null)
+                    if(invObject.obj != null)
                     {
-                        Texture2D texture = AssetPreview.GetAssetPreview(objectArray[boxCount].obj);
+                        Texture2D texture = null;
+
+                        texture = AssetPreview.GetAssetPreview(invObject.obj);
+                        if (invObject.obj is UnityEditor.MonoScript)
+                        {
+                            string iconPath = "Assets/Editor/EditorAssets/script_icon.png";
+                            texture = (Texture2D)AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D));
+                        }
+
                         GUI.DrawTexture(boxRect, texture);
-                        GUI.Label(boxRect, objectArray[boxCount].obj.name, boxLabelStyle);
+                        GUI.Label(boxRect, invObject.obj.name, boxLabelStyle);
                         if (InventoryController.stackingEnabled)
                         {
                             var labelRect = boxRect;
                             labelRect.width = boxRect.width - 4;
-                            GUI.Label(labelRect, objectArray[boxCount].stackSize.ToString(), stackLabelStyle);
+                            GUI.Label(labelRect, invObject.stackSize.ToString(), stackLabelStyle);
                         }
                     } else
                     {
@@ -162,11 +170,6 @@ public class InventoryWindow : EditorWindow
                 OnRightClick(evt, boxRect, boxCount);
                 OnLeftClick(evt, boxRect, boxCount);
 
-                if (evt.type == EventType.DragExited)
-                {
-                    dragStarted = false;
-                    dragStartedAt = -1;
-                }
                 boxCount++;
             }
             GUILayout.EndVertical();
@@ -175,6 +178,12 @@ public class InventoryWindow : EditorWindow
         initControls();
         
         CheckKeyInput(evt);
+    }
+
+    public void OnSceneGUI(SceneView sceneView)
+    {
+        var evt = Event.current;
+        OnDropSceneGUI(evt);
     }
 
     private void initControls()
@@ -211,14 +220,15 @@ public class InventoryWindow : EditorWindow
         if (GUILayout.Button("Clear All"))
         {
             inventoryController.ClearPrefs();
-            dragStarted = false;
+            Debug.Log("drag started set to false - Clear ALl");
+            dragStartedInWindow = false;
             OnPageChanged();
         }
     }
 
     private void DrawStackSplitWindow(Event evt)
     {
-        int maxValue = objectArray[dragPosition].stackSize;
+        int maxValue = activePage.GetInventoryObjectAt(dragPosition).stackSize;
         if (stackSplitWindowOpen == false)
         {
             sliderValue = (int) Math.Round((double)(maxValue / 2));
@@ -243,17 +253,7 @@ public class InventoryWindow : EditorWindow
 
         if (GUI.Button(new Rect(popUpX + 10, popUpY + 80, 60, 20), "OK"))
         {
-            Debug.Log("dropPos: " + dropPosition);
-            if(dropStackSize != 0)
-            {
-                objectArray[dropPosition] = new InventoryObject(objectArray[dragPosition].obj, dropStackSize);
-                objectArray[dragPosition].stackSize -= dropStackSize;
-            }
-            if(dropStackSize == maxValue)
-            {
-                objectArray[dropPosition] = new InventoryObject(objectArray[dragPosition].obj, dropStackSize);
-                objectArray[dragPosition] = null;
-            }
+            activePage.SplitStacks(dragPosition, dropPosition, dropStackSize);
             ResetStackSplitVariables();
         }
         if (GUI.Button(new Rect(popUpX + 80, popUpY + 80, 60, 20), "Cancel"))
@@ -324,15 +324,16 @@ public class InventoryWindow : EditorWindow
 
     private void OnDrag(Event evt, Rect boxRect, int number)
     {
-        if (evt.type == EventType.MouseDown && boxRect.Contains(evt.mousePosition) && dragStarted == false && objectArray[number] != null)
+        if (evt.type == EventType.MouseDown && boxRect.Contains(evt.mousePosition) && dragStartedInWindow == false && activePage.CheckPositionFilled(number))
         {
             UnityEngine.Object[] dragArray = new UnityEngine.Object[1];
-            dragArray[0] = objectArray[number].obj;
+            dragArray[0] = activePage.GetInventoryObjectAt(number).obj;
             DragAndDrop.PrepareStartDrag();
             DragAndDrop.objectReferences = dragArray;
             DragAndDrop.StartDrag(dragArray[0].ToString());
             DragAndDrop.visualMode = DragAndDropVisualMode.Generic;
-            dragStarted = true;
+            Debug.Log("drag started set to true - OnDrag");
+            dragStartedInWindow = true;
             dragStartedAt = number;
         }
     }
@@ -353,74 +354,35 @@ public class InventoryWindow : EditorWindow
             if (isAccepted)
             {
                 int dropType = CheckDropType(number, dragStartedAt, DragAndDrop.objectReferences[0]);
-                int dragStackSize = InventoryController.standardStackSize;
-
-                switch (dropType)
-                {
-                    case DROP_FROM_WINDOW_EMPTY:
-                        {
-                            dragStackSize = objectArray[dragStartedAt].stackSize;
-                            objectArray[dragStartedAt] = null;
-                            objectArray[number] = new InventoryObject(DragAndDrop.objectReferences[0], dragStackSize);
-                            break;
-                        }
-                    case DROP_FROM_WINDOW_ADD:
-                        {
-                            dragStackSize = objectArray[dragStartedAt].stackSize;
-                            if (InventoryController.stackingEnabled)
-                            {
-                                objectArray[number].stackSize += dragStackSize;
-                                if (dragStarted == true)
-                                {
-                                    objectArray[dragStartedAt] = null;
-                                }
-                            }
-                            break;
-                        }
-                    case DROP_FROM_WINDOW_SWITCH:
-                        {
-                            InventoryObject stage = objectArray[number];
-                            objectArray[number] = new InventoryObject(DragAndDrop.objectReferences[0], objectArray[dragStartedAt].stackSize);
-                            objectArray[dragStartedAt] = stage;
-                            break;
-                        }
-                    case DROP_WITH_STACKSPLIT:
-                        {
-                            dragPosition = dragStartedAt;
-                            dropPosition = number;
-                            dragStackSize = objectArray[dragStartedAt].stackSize;
-                            drawStackSplitWindow = true;
-                            break;
-                        }
-                    case DROP_FROM_EDITOR_OVERRIDE:
-                        {
-                            objectArray[number] = new InventoryObject(DragAndDrop.objectReferences[0], dragStackSize);
-                            break;
-                        }
-                    case DROP_FROM_EDITOR_ADD:
-                        {
-                            if (InventoryController.stackingEnabled)
-                            {
-                                objectArray[number].stackSize++;
-                            }                            
-                            break;
-                        }
-                    case DROP_FROM_WINDOW_SELF:
-                        {
-                            break;
-                        }
-                    default:
-                        {
-                            Debug.Log("Unknown drop type");
-                            break;
-                        }
-                }
+                activePage.HandleDropEvent(dropType, dragStartedAt, number, DragAndDrop.objectReferences[0]);
+                
                 dragStartedAt = -1;
-                dragStarted = false;
+                dragStartedInWindow = false;
                 leftClickedBoxId = number;
             }
         }
     }
+
+    private void OnDropSceneGUI(Event evt)
+    {
+        if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
+        {
+            if (evt.type == EventType.DragPerform)
+            {
+                Debug.Log("Drop in scene performed : " + dragStartedInWindow + "at :" + dragStartedAt);
+                if (dragStartedInWindow == true)
+                {
+                    Debug.Log("Decrement stack");
+                    activePage.DecrementStack(dragStartedAt);
+                    this.Repaint();
+                    dragStartedAt = -1;
+                    dragStartedInWindow = false;
+                }
+            }
+          
+        }
+    }
+
 
     private void OnRightClick(Event evt, Rect boxRect, int boxCount)
     {
@@ -429,7 +391,7 @@ public class InventoryWindow : EditorWindow
             rightClickedBoxId = boxCount;
             GenericMenu menu = new GenericMenu();
 
-            menu.AddItem(new GUIContent("DeleteItem"), false, DeleteObject);
+            menu.AddItem(new GUIContent("Delete Item"), false, DeleteObject);
 
             menu.ShowAsContext();
 
@@ -437,15 +399,15 @@ public class InventoryWindow : EditorWindow
         }
     }
 
-    private void OnLeftClick(Event evt, Rect boxRect, int boxCount)
+    private void OnLeftClick(Event evt, Rect boxRect, int fieldId)
     {
         if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains(evt.mousePosition))
         {
-            if (objectArray[boxCount] != null)
+            if (activePage.CheckPositionFilled(fieldId))
             {
-                UnityEditor.Selection.activeObject = objectArray[boxCount].obj;
+                UnityEditor.Selection.activeObject = activePage.GetInventoryObjectAt(fieldId).obj;
             }
-            leftClickedBoxId = boxCount;
+            leftClickedBoxId = fieldId;
             evt.Use();
         }
 
@@ -470,26 +432,30 @@ public class InventoryWindow : EditorWindow
 
     private void DeleteObject()
     {
-        inventoryController.DeleteObject(rightClickedBoxId);
+        activePage.DeleteObject(rightClickedBoxId);
         rightClickedBoxId = -1;
     }
 
     private int CheckDropType(int dropFieldId, int dragFieldId, UnityEngine.Object draggedObject)
     {
-        if(dragStarted == true)
+        if(dragStartedInWindow == true)
         {
-            if(objectArray[dropFieldId] == null)
+            if(activePage.CheckPositionFilled(dropFieldId) == false)
             {
                 if(stackSplitKeyPressed)
                 {
+                    dragPosition = dragFieldId;
+                    dropPosition = dropFieldId;
+                    drawStackSplitWindow = true;
                     return DROP_WITH_STACKSPLIT;
-                }else
+                }
+                else
                 {
                     return DROP_FROM_WINDOW_EMPTY;
                 }                
             } else
             {
-                if(UnityEngine.Object.ReferenceEquals(objectArray[dropFieldId].obj, draggedObject))
+                if(UnityEngine.Object.ReferenceEquals(activePage.GetInventoryObjectAt(dropFieldId).obj, draggedObject))
                 {
                     if(dropFieldId == dragFieldId)
                     {
@@ -503,9 +469,9 @@ public class InventoryWindow : EditorWindow
             }
         } else
         {
-            if (objectArray[dropFieldId] != null)
+            if (activePage.CheckPositionFilled(dropFieldId))
             {
-                if (UnityEngine.Object.ReferenceEquals(objectArray[dropFieldId].obj, draggedObject))
+                if (UnityEngine.Object.ReferenceEquals(activePage.GetInventoryObjectAt(dropFieldId).obj, draggedObject))
                 {
                     return DROP_FROM_EDITOR_ADD;
                 }
