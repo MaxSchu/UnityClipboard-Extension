@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System;
 
 public class InventoryWindow : EditorWindow
-
 {
     private const int DROP_FROM_WINDOW_EMPTY = 0;
     private const int DROP_FROM_WINDOW_ADD = 1;
@@ -16,12 +15,13 @@ public class InventoryWindow : EditorWindow
     private const int DROP_FROM_WINDOW_SELF = 6;
 
     private readonly UnityEngine.Color emptyBoxColor = Color.grey;
-    private static readonly float windowHeight = 640;
+    private static readonly float windowHeight = 559;
     private static readonly float windowWidth = 328;
     private readonly int width = 4;
     private readonly int height = 7;
     private readonly int boxWidth = 80;
     private readonly int boxHeight = 80;
+	private readonly int maxTabNumber = 10;
     private readonly float stackSplitwindowHeight = 110;
     private readonly float stackSplitwindowWidth = 150;
 
@@ -31,13 +31,14 @@ public class InventoryWindow : EditorWindow
     private GUIStyle boxStyle;
     private GUIStyle boxLabelStyle;
     private GUIStyle stackLabelStyle;
+	private GUIStyle tabLabelStyle;
+	private Texture2D emptyBoxTexture;
 
     private bool dragStartedInWindow;    
     private int dragStartedAt;
 
     private InventoryController inventoryController;
     private InventoryPage activePage;
-    private string pageName;
 
     private bool stackSplitKeyPressed = false;
     private bool drawStackSplitWindow = false;
@@ -55,10 +56,8 @@ public class InventoryWindow : EditorWindow
         SceneView.onSceneGUIDelegate += OnSceneGUI;
         inventoryController = new InventoryController(width, height);
         activePage = inventoryController.GetActivePage();
-        pageName = inventoryController.GetActivePage().GetPageName();
         rightClickedBoxId = -1;
         leftClickedBoxId = -1;
-        Debug.Log("drag started set to false - OnEnable");
         dragStartedInWindow = false;
         dragStartedAt = -1;
 
@@ -73,7 +72,6 @@ public class InventoryWindow : EditorWindow
     public void OnPageChanged()
     {
         activePage = inventoryController.GetActivePage();
-        pageName = activePage.GetPageName();
         this.Repaint();
     }
 
@@ -90,6 +88,16 @@ public class InventoryWindow : EditorWindow
         stackLabelStyle = new GUIStyle();
         stackLabelStyle.alignment = TextAnchor.UpperRight;
         stackLabelStyle.normal.textColor = Color.white;
+
+		tabLabelStyle = new GUIStyle ();
+		tabLabelStyle.alignment = TextAnchor.MiddleCenter;
+		tabLabelStyle.normal.textColor = Color.blue;
+		tabLabelStyle.wordWrap = true;
+
+		emptyBoxTexture = new Texture2D(1, 1);
+		emptyBoxTexture.SetPixel(1, 1, emptyBoxColor);
+		emptyBoxTexture.wrapMode = TextureWrapMode.Repeat;
+		emptyBoxTexture.Apply();
     }
 
     [MenuItem("Window/PrefabManager")]
@@ -97,8 +105,8 @@ public class InventoryWindow : EditorWindow
     public static void ShowWindow()
     {
         var window = GetWindow(typeof(InventoryWindow));
-        window.minSize = new Vector2(windowWidth, windowHeight);
-        window.maxSize = new Vector2(windowWidth, windowHeight);
+        //window.minSize = new Vector2(windowWidth, windowHeight);
+       // window.maxSize = new Vector2(windowWidth, windowHeight);
         window.titleContent.text = "Inventory";
     }
 
@@ -106,10 +114,51 @@ public class InventoryWindow : EditorWindow
     {
         var evt = Event.current;      
         int boxCount = 0;
+		int tabId = 0;
 
-        GUILayout.Label(pageName);
+
+		GUILayout.BeginHorizontal ();
+		string textFieldString = GUILayout.TextField(activePage.GetPageName(), 15);
+		if(!textFieldString.Equals(activePage.GetPageName()))
+		{
+			activePage.SetPageName(textFieldString);
+		}
+		if (GUILayout.Button("Delete Page"))
+		{
+			inventoryController.DeletePage(inventoryController.activePageId);
+			OnPageChanged();
+		}
+		GUILayout.EndHorizontal ();
+
+
 
         GUILayout.BeginHorizontal(GUILayout.Width(width * boxWidth));
+
+		GUILayout.BeginVertical ();
+		int tabHeight =(int) (windowHeight / maxTabNumber);
+		
+		for (int i = 0; i < inventoryController.GetPageCount(); i++) 
+		{
+			var boxRect = GUILayoutUtility.GetRect(GUIContent.none, boxStyle, GUILayout.Width(tabHeight), GUILayout.Height(tabHeight));
+			GUI.DrawTexture(boxRect, emptyBoxTexture);
+			GUI.Label(boxRect, inventoryController.GetPageName(tabId), tabLabelStyle);
+
+			OnTabClick(evt, boxRect, tabId);
+			tabId++;
+		}
+
+		if (inventoryController.GetPageCount () < maxTabNumber) 
+		{
+			var boxRect = GUILayoutUtility.GetRect(GUIContent.none, boxStyle, GUILayout.Width(tabHeight), GUILayout.Height(tabHeight));
+			GUI.DrawTexture(boxRect, emptyBoxTexture);
+			GUI.Label(boxRect, "AddPage", tabLabelStyle);
+			
+			OnAddTabClick(evt, boxRect);
+		}
+		
+		
+		GUILayout.EndVertical ();
+
         for (int i = 0; i < width; i++)
         {
             GUILayout.BeginVertical();
@@ -146,10 +195,6 @@ public class InventoryWindow : EditorWindow
                 }
                 else
                 {
-                    Texture2D emptyBoxTexture = new Texture2D(1, 1);
-                    emptyBoxTexture.SetPixel(1, 1, emptyBoxColor);
-                    emptyBoxTexture.wrapMode = TextureWrapMode.Repeat;
-                    emptyBoxTexture.Apply();
                     GUI.DrawTexture(boxRect, emptyBoxTexture);
                 }
 
@@ -174,9 +219,8 @@ public class InventoryWindow : EditorWindow
             }
             GUILayout.EndVertical();
         }
-        GUILayout.EndHorizontal();
-        initControls();
-        
+		GUILayout.EndHorizontal ();
+		InitControls ();
         CheckKeyInput(evt);
     }
 
@@ -186,7 +230,7 @@ public class InventoryWindow : EditorWindow
         OnDropSceneGUI(evt);
     }
 
-    private void initControls()
+    private void InitControls()
     {
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Previous Page"))
@@ -194,18 +238,9 @@ public class InventoryWindow : EditorWindow
             inventoryController.SetActivePage(-1);
             OnPageChanged();
         }
-        if (GUILayout.Button("-"))
-        {
-            inventoryController.DeletePage();
-            OnPageChanged();
-        }
-        string textFieldString = GUILayout.TextField(pageName, 25);
-        if (textFieldString != pageName)
-        {
-            pageName = textFieldString;
-            inventoryController.GetActivePage().SetPageName(pageName);
-            OnPageChanged();
-        }
+        
+        
+
         if (GUILayout.Button("+"))
         {
             inventoryController.AddPage();
@@ -426,9 +461,26 @@ public class InventoryWindow : EditorWindow
             stackSplitKeyPressed = false;
             evt.Use();
         }
-        
-
     }
+
+	private void OnTabClick(Event evt, Rect boxRect, int tabId) 
+	{
+		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
+		{
+			Debug.Log ("click on tab " + tabId);
+			inventoryController.SetActivePage(tabId);
+			OnPageChanged();
+		}
+	}
+
+	private void OnAddTabClick(Event evt, Rect boxRect)
+	{
+		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
+		{
+			inventoryController.AddPage();
+			OnPageChanged();
+		}
+	}
 
     private void DeleteObject()
     {

@@ -12,15 +12,12 @@ public class InventoryPage {
 
 
     private InventoryObject[] objectArray;
-	private int pageId;
-
 	public string pageName;
 
-	public InventoryPage(string pageName, InventoryObject[] objectArray, int pageId) 
+	public InventoryPage(string pageName, InventoryObject[] objectArray) 
 	{
 		this.pageName = pageName;
 		this.objectArray = objectArray;
-		this.pageId = pageId;
 	}
 
 	public void AddInventoryObject(InventoryObject obj, int pos) 
@@ -65,11 +62,6 @@ public class InventoryPage {
     {
         return objectArray;
     }
-
-    public int GetPageId() 
-	{
-		return pageId;
-	}
 
 	public string GetPageName()
 	{
@@ -157,6 +149,7 @@ public class InventoryPage {
         {
             objectArray[i] = null;           
         }
+		pageName = "page0";
     }
 
 

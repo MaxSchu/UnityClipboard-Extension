@@ -21,12 +21,10 @@ public class OpenWindowListener
                         e.Use();
                         if (windowOpen == false)
                         {
-                            Debug.Log("Openwindow in listener");
                             InventoryWindow.ShowWindow();
                             windowOpen = true;
                         } else
                         {
-                            Debug.Log("Closewindow in listener");
                             EditorWindow.GetWindow<InventoryWindow>().Close();
                             windowOpen = false;
                         }                        

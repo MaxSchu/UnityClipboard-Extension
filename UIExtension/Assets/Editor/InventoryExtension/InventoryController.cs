@@ -9,8 +9,7 @@ public class InventoryController {
     public readonly static KeyCode splitStackKey = KeyCode.LeftAlt;
 
 	private ArrayList pageList = new ArrayList();
-	private int activePageId;
-	private int pageCount = 0;
+	public int activePageId;
 
 	private int height, width;
 
@@ -23,95 +22,72 @@ public class InventoryController {
 
 	public void AddPage() 
 	{
-		InventoryPage page = new InventoryPage ("page" + pageCount, new InventoryObject[width*height], pageCount);
+		InventoryPage page = new InventoryPage ("page" + pageList.Count, new InventoryObject[width*height]);
 		pageList.Add (page);
-		pageCount++;
-		activePageId = page.GetPageId();
+		activePageId = pageList.Count-1;
 	}
 
 	private void LoadPage(InventoryPage page) 
 	{
 		pageList.Add (page);
-		pageCount++;
 	}
 
-	public void DeletePage() 
-	{
-        for (int i = pageList.Count - 1; i >= 0; i--)
+	public void DeletePage(int id) 
+	{               
+    	if (pageList.Count == 1)
         {
-            InventoryPage page = (InventoryPage)pageList[i];
-            if (page.GetPageId() == activePageId)
-            {                
-                if (pageList.Count == 1)
-                {
-                    ((InventoryPage)pageList[0]).ClearPage();
-                    return;
-                }
-                else
-                {
-                    int index = pageList.IndexOf(page);
-                    DeletePageFromPrefs(page);
-                    pageList.Remove(page);
-                    if (index >= pageList.Count)
-                    {
-                        index--;
-                    }
-                    activePageId = ((InventoryPage)pageList[index]).GetPageId();
-                    return;
-                }
-            }
-        }
+			((InventoryPage)pageList[0]).ClearPage();
+			return;
+		}
+		else
+		{
+			DeletePageFromPrefs((InventoryPage)pageList[id]);
+			pageList.RemoveAt(id);
+			if (id >= pageList.Count)
+			{
+				id--;
+			}
+			activePageId = id;
+		}
     }
 
-	public void SetActivePage(int num)
+	public void SetActivePage(int id)
 	{
-		int index = pageList.IndexOf (GetActivePage ());
-		if ((index + num) >= 0 && (index + num) <= pageList.Count-1) 
-		{
-			activePageId = ((InventoryPage)pageList [index + num]).GetPageId ();
-		}
+		activePageId = id;
 	}
 
 	public InventoryPage GetActivePage()
 	{
-		for(int i = 0; i < pageList.Count; i++)
-		{
-            InventoryPage page = (InventoryPage)pageList[i];
-			if(page.GetPageId() == activePageId) 
-			{
-                return page;
-			}
-		}
-		return null;
+		return (InventoryPage)pageList[activePageId];
 	}
 	
 	public void SafePrefs()
 	{
         InventoryObject[] objectArray;
         InventoryObject obj;
-		int pageId;
+		InventoryPage page;
 
-		foreach (InventoryPage page in pageList) 
+		for (int i = 0; i < pageList.Count; i++) 
 		{
-			pageId = page.GetPageId();
+			page = (InventoryPage) pageList[i];
 			objectArray = page.GetObjectArray();
-			for (int i = 0; i < width * height; i++)
+			for (int u = 0; u < width * height; u++)
 			{
-				if ((obj = objectArray[i]) != null)
+				if ((obj = objectArray[u]) != null)
 				{
 					string path = AssetDatabase.GetAssetPath(obj.obj);
-					EditorPrefs.SetString("" + pageId + "." + i, path);
-                    if(stackingEnabled)
-                    {
-                        EditorPrefs.SetInt("Stack" + pageId + "." + i, obj.stackSize);
-                    }
+					EditorPrefs.SetString("" + i + "." + u, path);
+					if(stackingEnabled)
+					{
+						EditorPrefs.SetInt("Stack" + i + "." + u, obj.stackSize);
+					}
 				} else
 				{
-					EditorPrefs.DeleteKey("" + pageId + "." + i);
-                    EditorPrefs.DeleteKey("Stack" + pageId + "." + i);
-                }
+					EditorPrefs.DeleteKey("" + i + "." + u);
+					EditorPrefs.DeleteKey("Stack" + i + "." + u);
+				}
 			}
-			EditorPrefs.SetString("pageName" + page.GetPageId(), page.GetPageName());
+			EditorPrefs.SetString("pageName" + i, page.GetPageName());	
 		}
 		EditorPrefs.SetInt (pageCountKey, pageList.Count);
 	}
@@ -142,16 +118,16 @@ public class InventoryController {
                         objectArray[i] = new InventoryObject(AssetDatabase.LoadAssetAtPath(objPath, typeof(UnityEngine.Object)), stackSize);
                     }
 				}
-				LoadPage (new InventoryPage(EditorPrefs.GetString("pageName"+ pageId), objectArray, pageId));
+				LoadPage (new InventoryPage(EditorPrefs.GetString("pageName"+ pageId), objectArray));
 			}
 
 		}
-		activePageId = ((InventoryPage) pageList[0]).GetPageId();
+		activePageId = 0;
 	}
 
-    private void DeletePageFromPrefs( InventoryPage page)
+    private void DeletePageFromPrefs(InventoryPage page)
     {
-        int pageId = page.GetPageId();
+		int pageId = pageList.IndexOf (page);
         for ( int i = 0; i < page.GetObjectArray().Length; i++)
         {
             EditorPrefs.DeleteKey("" + pageId + "." + i);
@@ -159,10 +135,10 @@ public class InventoryController {
         }
         EditorPrefs.DeleteKey("pageName" + pageId);
     }
-	
+
 	public void ClearPrefs()
 	{
-		for(int pageId = 0; pageId < pageCount; pageId++)
+		for(int pageId = 0; pageId < pageList.Count; pageId++)
 		{
 			for(int i = 0; i < width*height; i++)
 			{
@@ -173,7 +149,20 @@ public class InventoryController {
 		}
 		EditorPrefs.DeleteKey(pageCountKey);
 		pageList = new ArrayList ();
-		pageCount = 0;
 		AddPage ();
+	}
+
+	public string GetPageName(int id)
+	{
+		if (id >= pageList.Count) 
+		{
+			return "PageNotAddedYet";
+		}
+		return ((InventoryPage)pageList [id]).GetPageName ();
+	}
+
+	public int GetPageCount()
+	{
+		return pageList.Count;
 	}
 }
