@@ -15,8 +15,8 @@ public class InventoryWindow : EditorWindow
     private const int DROP_FROM_WINDOW_SELF = 6;
 
     private readonly UnityEngine.Color emptyBoxColor = Color.grey;
-    private static readonly float windowHeight = 559;
-    private static readonly float windowWidth = 328;
+    private static readonly float windowHeight = 597;
+    private static readonly float windowWidth = 387;
     private readonly int width = 4;
     private readonly int height = 7;
     private readonly int boxWidth = 80;
@@ -27,11 +27,13 @@ public class InventoryWindow : EditorWindow
 
     private int rightClickedBoxId;
     private int leftClickedBoxId;
+    private int selectedTabId = 0;
 
     private GUIStyle boxStyle;
     private GUIStyle boxLabelStyle;
     private GUIStyle stackLabelStyle;
 	private GUIStyle tabLabelStyle;
+    private GUIStyle pageTitleInputStyle;
 	private Texture2D emptyBoxTexture;
 
     private bool dragStartedInWindow;    
@@ -51,8 +53,11 @@ public class InventoryWindow : EditorWindow
     int dropPosition = -1;
     int dragPosition = -1;
 
+    public static CSVLogger csvLog;
+
     public void OnEnable()
     {
+        csvLog = OpenWindowListener.GetLogger();
         SceneView.onSceneGUIDelegate += OnSceneGUI;
         inventoryController = new InventoryController(width, height);
         activePage = inventoryController.GetActivePage();
@@ -61,17 +66,21 @@ public class InventoryWindow : EditorWindow
         dragStartedInWindow = false;
         dragStartedAt = -1;
 
+        csvLog.WriteRow(new List<string>(new string[] { "Enable Inventory Window" }));
         InitStyles();
+        
     }
 
     public void OnDisable()
     {
+        csvLog.WriteRow(new List<string>(new string[] { "Disable Inventory Window" }));
         inventoryController.SafePrefs();
     }
 
     public void OnPageChanged()
     {
         activePage = inventoryController.GetActivePage();
+        selectedTabId = inventoryController.activePageId;
         this.Repaint();
     }
 
@@ -91,13 +100,16 @@ public class InventoryWindow : EditorWindow
 
 		tabLabelStyle = new GUIStyle ();
 		tabLabelStyle.alignment = TextAnchor.MiddleCenter;
-		tabLabelStyle.normal.textColor = Color.blue;
+		tabLabelStyle.normal.textColor = Color.white;
 		tabLabelStyle.wordWrap = true;
 
 		emptyBoxTexture = new Texture2D(1, 1);
 		emptyBoxTexture.SetPixel(1, 1, emptyBoxColor);
 		emptyBoxTexture.wrapMode = TextureWrapMode.Repeat;
 		emptyBoxTexture.Apply();
+
+        pageTitleInputStyle = new GUIStyle(GUI.skin.textField);
+        pageTitleInputStyle.fixedWidth = 200;
     }
 
     [MenuItem("Window/PrefabManager")]
@@ -105,8 +117,8 @@ public class InventoryWindow : EditorWindow
     public static void ShowWindow()
     {
         var window = GetWindow(typeof(InventoryWindow));
-        //window.minSize = new Vector2(windowWidth, windowHeight);
-       // window.maxSize = new Vector2(windowWidth, windowHeight);
+        window.minSize = new Vector2(windowWidth, windowHeight);
+        window.maxSize = new Vector2(windowWidth, windowHeight);
         window.titleContent.text = "Inventory";
     }
 
@@ -118,14 +130,16 @@ public class InventoryWindow : EditorWindow
 
 
 		GUILayout.BeginHorizontal ();
-		string textFieldString = GUILayout.TextField(activePage.GetPageName(), 15);
+		string textFieldString = GUILayout.TextField(activePage.GetPageName(), 15, pageTitleInputStyle);
 		if(!textFieldString.Equals(activePage.GetPageName()))
 		{
-			activePage.SetPageName(textFieldString);
+            csvLog.WriteRow(new List<string>(new string[] { "Rename page", activePage.GetPageName(), textFieldString }));
+            activePage.SetPageName(textFieldString);
 		}
-		if (GUILayout.Button("Delete Page"))
+		if (GUILayout.Button("Delete Page", pageTitleInputStyle))
 		{
-			inventoryController.DeletePage(inventoryController.activePageId);
+            csvLog.WriteRow(new List<string>(new string[] { "Delete Page", activePage.GetPageName() }));
+            inventoryController.DeletePage(inventoryController.activePageId);
 			OnPageChanged();
 		}
 		GUILayout.EndHorizontal ();
@@ -135,12 +149,21 @@ public class InventoryWindow : EditorWindow
         GUILayout.BeginHorizontal(GUILayout.Width(width * boxWidth));
 
 		GUILayout.BeginVertical ();
-		int tabHeight =(int) (windowHeight / maxTabNumber);
+		int tabHeight =(int) ((windowHeight-34) / maxTabNumber);
 		
 		for (int i = 0; i < inventoryController.GetPageCount(); i++) 
 		{
 			var boxRect = GUILayoutUtility.GetRect(GUIContent.none, boxStyle, GUILayout.Width(tabHeight), GUILayout.Height(tabHeight));
-			GUI.DrawTexture(boxRect, emptyBoxTexture);
+            Texture2D tab;
+            if (selectedTabId == tabId)
+            {
+                tab = (Texture2D)AssetDatabase.LoadAssetAtPath("Assets/Editor/EditorAssets/tab_icon_selected.png", typeof(Texture2D));
+            }else
+            {
+                tab = (Texture2D)AssetDatabase.LoadAssetAtPath("Assets/Editor/EditorAssets/tab_icon_unselected.png", typeof(Texture2D));
+            }
+            
+            GUI.DrawTexture(boxRect, tab);
 			GUI.Label(boxRect, inventoryController.GetPageName(tabId), tabLabelStyle);
 
 			OnTabClick(evt, boxRect, tabId);
@@ -150,9 +173,8 @@ public class InventoryWindow : EditorWindow
 		if (inventoryController.GetPageCount () < maxTabNumber) 
 		{
 			var boxRect = GUILayoutUtility.GetRect(GUIContent.none, boxStyle, GUILayout.Width(tabHeight), GUILayout.Height(tabHeight));
-			GUI.DrawTexture(boxRect, emptyBoxTexture);
-			GUI.Label(boxRect, "AddPage", tabLabelStyle);
-			
+            Texture2D addTab = (Texture2D)AssetDatabase.LoadAssetAtPath("Assets/Editor/EditorAssets/tab_icon_add.png", typeof(Texture2D));
+            GUI.DrawTexture(boxRect, addTab);			
 			OnAddTabClick(evt, boxRect);
 		}
 		
@@ -220,7 +242,6 @@ public class InventoryWindow : EditorWindow
             GUILayout.EndVertical();
         }
 		GUILayout.EndHorizontal ();
-		InitControls ();
         CheckKeyInput(evt);
     }
 
@@ -253,7 +274,6 @@ public class InventoryWindow : EditorWindow
         if (GUILayout.Button("Clear All"))
         {
             inventoryController.ClearPrefs();
-            Debug.Log("drag started set to false - Clear ALl");
             dragStartedInWindow = false;
             OnPageChanged();
         }
@@ -365,7 +385,10 @@ public class InventoryWindow : EditorWindow
             DragAndDrop.objectReferences = dragArray;
             DragAndDrop.StartDrag(dragArray[0].ToString());
             DragAndDrop.visualMode = DragAndDropVisualMode.Generic;
-            Debug.Log("drag started set to true - OnDrag");
+            if (activePage.CheckPositionFilled(number))
+            {
+                csvLog.WriteRow(new List<string>(new string[] { "Drag Object from Window", dragArray[0].ToString(), activePage.GetInventoryObjectAt(number).stackSize.ToString(), "-1", activePage.GetPageName() }));
+            }
             dragStartedInWindow = true;
             dragStartedAt = number;
         }
@@ -387,6 +410,18 @@ public class InventoryWindow : EditorWindow
             if (isAccepted)
             {
                 int dropType = CheckDropType(number, dragStartedAt, DragAndDrop.objectReferences[0]);
+                if(dragStartedInWindow == false)
+                {
+                    csvLog.WriteRow(new List<string>(new string[] { "Drop Object in Window", DragAndDrop.objectReferences[0].ToString(), "no stacksize",dropType.ToString(), activePage.GetPageName() }));
+                }
+                else
+                {
+                    if (activePage.CheckPositionFilled(dragStartedAt))
+                    {
+                        csvLog.WriteRow(new List<string>(new string[] { "Drop Object in Window", DragAndDrop.objectReferences[0].ToString(), activePage.GetInventoryObjectAt(dragStartedAt).stackSize.ToString(), dropType.ToString(), activePage.GetPageName() }));
+                    }
+                }
+                
                 activePage.HandleDropEvent(dropType, dragStartedAt, number, DragAndDrop.objectReferences[0]);
                 
                 dragStartedAt = -1;
@@ -406,6 +441,10 @@ public class InventoryWindow : EditorWindow
                 if (dragStartedInWindow == true)
                 {
                     Debug.Log("Decrement stack");
+                    if (activePage.CheckPositionFilled(dragStartedAt))
+                    {
+                        csvLog.WriteRow(new List<string>(new string[] { "Drop Object from Window in Scene", activePage.GetInventoryObjectAt(dragStartedAt).obj.ToString(), activePage.GetInventoryObjectAt(dragStartedAt).stackSize.ToString(), "-1", activePage.GetPageName() }));
+                    }
                     activePage.DecrementStack(dragStartedAt);
                     this.Repaint();
                     dragStartedAt = -1;
@@ -421,9 +460,17 @@ public class InventoryWindow : EditorWindow
     {
         if (evt.type == EventType.MouseDown && evt.button == 1 && boxRect.Contains(evt.mousePosition))
         {
+
             rightClickedBoxId = boxCount;
             GenericMenu menu = new GenericMenu();
+            if(activePage.CheckPositionFilled(rightClickedBoxId))
+            {
+                csvLog.WriteRow(new List<string>(new string[] { "Right Click on Object", activePage.GetInventoryObjectAt(rightClickedBoxId).obj.ToString(), activePage.GetInventoryObjectAt(rightClickedBoxId).stackSize.ToString(), activePage.GetPageName() }));
+            }else
+            {
+                csvLog.WriteRow(new List<string>(new string[] { "Right Click on EmptyField" }));
 
+            }
             menu.AddItem(new GUIContent("Delete Item"), false, DeleteObject);
 
             menu.ShowAsContext();
@@ -438,8 +485,14 @@ public class InventoryWindow : EditorWindow
         {
             if (activePage.CheckPositionFilled(fieldId))
             {
+                csvLog.WriteRow(new List<string>(new string[] { "Left Click on Object", activePage.GetInventoryObjectAt(fieldId).obj.ToString(), activePage.GetInventoryObjectAt(fieldId).stackSize.ToString(), "-1",activePage.GetPageName() }));
                 UnityEditor.Selection.activeObject = activePage.GetInventoryObjectAt(fieldId).obj;
+            }else
+            {
+                UnityEditor.Selection.activeObject = null;
+                csvLog.WriteRow(new List<string>(new string[] { "Left Click on EmptyField" }));
             }
+            
             leftClickedBoxId = fieldId;
             evt.Use();
         }
@@ -465,9 +518,9 @@ public class InventoryWindow : EditorWindow
 	{
 		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
 		{
-			Debug.Log ("click on tab " + tabId);
-			inventoryController.SetActivePage(tabId);
-			OnPageChanged();
+            inventoryController.SetActivePage(tabId);
+            csvLog.WriteRow(new List<string>(new string[] { "Switched to Bag", inventoryController.GetActivePage().GetPageName() }));
+            OnPageChanged();
 		}
 	}
 
@@ -475,15 +528,21 @@ public class InventoryWindow : EditorWindow
 	{
 		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
 		{
-			inventoryController.AddPage();
-			OnPageChanged();
+            inventoryController.AddPage();
+            csvLog.WriteRow(new List<string>(new string[] { "Added new Bag", inventoryController.GetActivePage().GetPageName() }));
+            OnPageChanged();
 		}
 	}
 
     private void DeleteObject()
     {
+        if(activePage.CheckPositionFilled(rightClickedBoxId))
+        {
+            csvLog.WriteRow(new List<string>(new string[] { "Deleting Object", activePage.GetInventoryObjectAt(rightClickedBoxId).obj.ToString(), activePage.GetInventoryObjectAt(rightClickedBoxId).stackSize.ToString(), "-1", activePage.GetPageName() }));
+        }
         activePage.DeleteObject(rightClickedBoxId);
         rightClickedBoxId = -1;
+        UnityEditor.Selection.activeObject = null;
     }
 
     private int CheckDropType(int dropFieldId, int dragFieldId, UnityEngine.Object draggedObject)
@@ -547,5 +606,8 @@ public class InventoryWindow : EditorWindow
         }
     }
 
-
+    public static void setCSVLogger(CSVLogger csv)
+    {
+        csvLog = csv;
+    }
 }

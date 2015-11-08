@@ -3,7 +3,9 @@ using UnityEditor;
 [InitializeOnLoad]
 public class OpenWindowListener
 {
-    public static bool windowOpen = false;
+    public static bool windowOpen = false;    
+    private static int csvId = 0;
+    public static CSVLogger csvLog = new CSVLogger("testCSV" + csvId + ".csv");
 
     static OpenWindowListener()
     {
@@ -16,7 +18,7 @@ public class OpenWindowListener
         {
             case EventType.keyDown:
                 {
-                    if (Event.current.keyCode == (KeyCode.I))
+                    if (e.keyCode == (KeyCode.I))
                     {
                         e.Use();
                         if (windowOpen == false)
@@ -29,8 +31,25 @@ public class OpenWindowListener
                             windowOpen = false;
                         }                        
                     }
+                    if (e.control && e.keyCode == KeyCode.RightArrow)
+                    {
+                        CSVLogger.NextTask();
+                        e.Use();
+                    }
+                    if (e.control && e.keyCode == KeyCode.Delete)
+                    {
+                        csvLog.Dispose();
+                        csvId++;
+                        csvLog = new CSVLogger("testCSV" + csvId + ".csv");
+                        InventoryWindow.setCSVLogger(csvLog);
+                    }
                     break;
                 }
         }        
+    }
+
+    public static CSVLogger GetLogger()
+    {
+        return csvLog;
     }
 }

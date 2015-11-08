@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using UnityEngine;
 
 public enum EmptyLineBehavior
 {
@@ -12,7 +13,7 @@ public enum EmptyLineBehavior
 
 public abstract class CsvFileCommon
 {
-	protected char[] SpecialChars = new char[] { ',', '"', '\r', '\n' };
+	protected char[] SpecialChars = new char[] { ';', '"', '\r', '\n' };
 	
 	private const int DelimiterIndex = 0;
 	private const int QuoteIndex = 1;
@@ -38,12 +39,9 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	private string TwoQuotes = null;
 	private string QuotedFormat = null;
 
-	private int currentTask = 1;
+	private static int currentTask = 1;
 	private string user = "nutzer1";
-
-
-	private List<string> standardLogElement;
-	
+    private bool firstRow = true;
 	/// <summary>
 	/// Initializes a new instance of the CsvFileWriter class for the
 	/// specified stream.
@@ -62,7 +60,7 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	public CSVLogger(string path)
 	{
 		Writer = new StreamWriter(path);
-		initStandardLogElement ();
+        WriteRow(new List<string>(new string[] {}));
 	}
 	
 	/// <summary>
@@ -71,8 +69,14 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	/// <param name="columns">The list of columns to write</param>
 	public void WriteRow(List<string> columns)
 	{
+		List<string> row = GetStandardLogElement();
+		foreach(string column in columns)
+		{
+			row.Add(column);
+		}
+
 		// Verify required argument
-		if (columns == null)
+		if (row == null)
 			throw new ArgumentNullException("columns");
 		
 		// Ensure we're using current quote character
@@ -84,16 +88,16 @@ public class CSVLogger : CsvFileCommon, IDisposable
 		}
 		
 		// Write each column
-		for (int i = 0; i < columns.Count; i++)
+		for (int i = 0; i < row.Count; i++)
 		{
 			// Add delimiter if this isn't the first column
 			if (i > 0)
 				Writer.Write(Delimiter);
 			// Write this column
-			if (columns[i].IndexOfAny(SpecialChars) == -1)
-				Writer.Write(columns[i]);
+			if (row[i].IndexOfAny(SpecialChars) == -1)
+				Writer.Write(row[i]);
 			else
-				Writer.Write(QuotedFormat, columns[i].Replace(OneQuote, TwoQuotes));
+				Writer.Write(QuotedFormat, row[i].Replace(OneQuote, TwoQuotes));
 		}
 		Writer.WriteLine();
 	}
@@ -102,17 +106,29 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	public void Dispose()
 	{
 		Writer.Dispose();
+        Debug.Log("CSV File ended");
 	}
 
-	public void NextTask() 
+	public static void NextTask() 
 	{
 		currentTask++;
+        Debug.Log("Switched to task" + currentTask);
 	}
 
-	private void initStandardLogElement()
+	private List<string> GetStandardLogElement()
 	{
-		string timeStamp = System.DateTime.UtcNow;
-		string task = "Task" + currentTask;
+        if(firstRow)
+        {
+            firstRow = false;
+            return new List<string>(new string[] { "Task", "Username","TimeStamp", "ActionType", "ObjectName", "Stacksize", "DropType", "OnPage"});           
+        }
+        string task = "Task" + currentTask;
+		string timeStamp = DateTime.Now.ToString();
+		return new List<string>(new string[] { task, user, timeStamp});
 	}
 
+    public void SetUserName(string user)
+    {
+        this.user = user;
+    }
 }
