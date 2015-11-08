@@ -8,6 +8,8 @@ public class InventoryController {
     public readonly static int standardStackSize = 1;
     public readonly static KeyCode splitStackKey = KeyCode.LeftAlt;
 
+	public static CSVLogger csvLog;
+
 	private ArrayList pageList = new ArrayList();
 	public int activePageId;
 
@@ -15,6 +17,7 @@ public class InventoryController {
 
 	public InventoryController(int width, int height) 
 	{
+		csvLog = new CSVLogger ("testCSV.csv");
 		this.height = height;
 		this.width = width;
 		LoadPrefs ();
@@ -34,6 +37,7 @@ public class InventoryController {
 
 	public void DeletePage(int id) 
 	{               
+
     	if (pageList.Count == 1)
         {
 			((InventoryPage)pageList[0]).ClearPage();

@@ -239,8 +239,6 @@ public class InventoryWindow : EditorWindow
             OnPageChanged();
         }
         
-        
-
         if (GUILayout.Button("+"))
         {
             inventoryController.AddPage();
