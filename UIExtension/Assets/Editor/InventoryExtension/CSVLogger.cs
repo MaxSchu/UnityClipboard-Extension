@@ -42,31 +42,13 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	private static int currentTask = 1;
 	private string user = "nutzer1";
     private bool firstRow = true;
-	/// <summary>
-	/// Initializes a new instance of the CsvFileWriter class for the
-	/// specified stream.
-	/// </summary>
-	/// <param name="stream">The stream to write to</param>
-	public CSVLogger(Stream stream)
-	{
-		Writer = new StreamWriter(stream);
-	}
 	
-	/// <summary>
-	/// Initializes a new instance of the CsvFileWriter class for the
-	/// specified file path.
-	/// </summary>
-	/// <param name="path">The name of the CSV file to write to</param>
 	public CSVLogger(string path)
 	{
 		Writer = new StreamWriter(path);
         WriteRow(new List<string>(new string[] {}));
 	}
 	
-	/// <summary>
-	/// Writes a row of columns to the current CSV file.
-	/// </summary>
-	/// <param name="columns">The list of columns to write</param>
 	public void WriteRow(List<string> columns)
 	{
 		List<string> row = GetStandardLogElement();
@@ -75,11 +57,9 @@ public class CSVLogger : CsvFileCommon, IDisposable
 			row.Add(column);
 		}
 
-		// Verify required argument
 		if (row == null)
 			throw new ArgumentNullException("columns");
 		
-		// Ensure we're using current quote character
 		if (OneQuote == null || OneQuote[0] != Quote)
 		{
 			OneQuote = String.Format("{0}", Quote);
@@ -87,13 +67,10 @@ public class CSVLogger : CsvFileCommon, IDisposable
 			QuotedFormat = String.Format("{0}{{0}}{0}", Quote);
 		}
 		
-		// Write each column
 		for (int i = 0; i < row.Count; i++)
 		{
-			// Add delimiter if this isn't the first column
 			if (i > 0)
 				Writer.Write(Delimiter);
-			// Write this column
 			if (row[i].IndexOfAny(SpecialChars) == -1)
 				Writer.Write(row[i]);
 			else
@@ -102,17 +79,21 @@ public class CSVLogger : CsvFileCommon, IDisposable
 		Writer.WriteLine();
 	}
 	
-	// Propagate Dispose to StreamWriter
 	public void Dispose()
 	{
 		Writer.Dispose();
         Debug.Log("CSV File ended");
 	}
 
-	public static void NextTask() 
+	public static void StartTask()
 	{
+		Debug.Log ("Stated task" + currentTask);
+	}
+
+	public static void EndTask()
+	{
+		Debug.Log ("Ended task" + currentTask);
 		currentTask++;
-        Debug.Log("Switched to task" + currentTask);
 	}
 
 	private List<string> GetStandardLogElement()
@@ -123,7 +104,8 @@ public class CSVLogger : CsvFileCommon, IDisposable
             return new List<string>(new string[] { "Task", "Username","TimeStamp", "ActionType", "ObjectName", "Stacksize", "DropType", "OnPage"});           
         }
         string task = "Task" + currentTask;
-		string timeStamp = DateTime.Now.ToString();
+		Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+		string timeStamp = unixTimestamp.ToString ();
 		return new List<string>(new string[] { task, user, timeStamp});
 	}
 

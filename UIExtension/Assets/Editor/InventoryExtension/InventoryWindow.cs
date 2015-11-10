@@ -67,7 +67,6 @@ public class InventoryWindow : EditorWindow
         dragStartedAt = -1;
 
         csvLog.WriteRow(new List<string>(new string[] { "Enable Inventory Window" }));
-        InitStyles();
         
     }
 
@@ -108,8 +107,8 @@ public class InventoryWindow : EditorWindow
 		emptyBoxTexture.wrapMode = TextureWrapMode.Repeat;
 		emptyBoxTexture.Apply();
 
-        pageTitleInputStyle = new GUIStyle(GUI.skin.textField);
-        pageTitleInputStyle.fixedWidth = 200;
+		pageTitleInputStyle = new GUIStyle(GUI.skin.textField);
+		pageTitleInputStyle.fixedWidth = (int)windowWidth/2;
     }
 
     [MenuItem("Window/PrefabManager")]
@@ -124,6 +123,7 @@ public class InventoryWindow : EditorWindow
 
     void OnGUI()
     {
+		InitStyles ();
         var evt = Event.current;      
         int boxCount = 0;
 		int tabId = 0;
@@ -136,7 +136,7 @@ public class InventoryWindow : EditorWindow
             csvLog.WriteRow(new List<string>(new string[] { "Rename page", activePage.GetPageName(), textFieldString }));
             activePage.SetPageName(textFieldString);
 		}
-		if (GUILayout.Button("Delete Page", pageTitleInputStyle))
+		if (GUILayout.Button("Delete Page"))
 		{
             csvLog.WriteRow(new List<string>(new string[] { "Delete Page", activePage.GetPageName() }));
             inventoryController.DeletePage(inventoryController.activePageId);
