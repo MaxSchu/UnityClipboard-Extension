@@ -25,6 +25,19 @@ public class InventoryPage {
 		objectArray [pos] = obj;
 	}
 
+    public bool AddObjectOnFreeSpace(InventoryObject obj)
+    {
+        for(int i = 0; i < objectArray.Length; i++)
+        {
+            if(objectArray[i] == null)
+            {
+                objectArray[i] = obj;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public bool CheckPositionFilled(int pos)
     {
         if(objectArray[pos] == null)
@@ -141,6 +154,11 @@ public class InventoryPage {
                     break;
                 }
         }
+    }
+
+    public void DropOnTab()
+    {
+
     }
 
     public void ClearPage()

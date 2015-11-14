@@ -41,10 +41,14 @@ public class CSVLogger : CsvFileCommon, IDisposable
 
 	private static int currentTask = 1;
 	private string user = "nutzer1";
+    private string path;
+    private bool invSup = true;
     private bool firstRow = true;
+    private bool taskRunning = false;
 	
 	public CSVLogger(string path)
 	{
+        this.path = path;
 		Writer = new StreamWriter(path);
         WriteRow(new List<string>(new string[] {}));
 	}
@@ -82,17 +86,32 @@ public class CSVLogger : CsvFileCommon, IDisposable
 	public void Dispose()
 	{
 		Writer.Dispose();
-        Debug.Log("CSV File ended");
+        Debug.Log("CSV File ended, written out to" + path);
 	}
 
-	public static void StartTask()
+    public void NextTask()
+    {
+        if(taskRunning)
+        {
+            EndTask();
+            taskRunning = false;
+        } else
+        {
+            StartTask();
+            taskRunning = true;
+        }
+    }
+
+	public void StartTask()
 	{
-		Debug.Log ("Stated task" + currentTask);
+        WriteRow(new List<string>(new string[] { "Task" + currentTask + " started"}));
+		Debug.Log ("Started task" + currentTask);
 	}
 
-	public static void EndTask()
+	public void EndTask()
 	{
-		Debug.Log ("Ended task" + currentTask);
+        WriteRow(new List<string>(new string[] { "Task" + currentTask + " ended" }));
+        Debug.Log ("Ended task" + currentTask);
 		currentTask++;
 	}
 
@@ -101,12 +120,12 @@ public class CSVLogger : CsvFileCommon, IDisposable
         if(firstRow)
         {
             firstRow = false;
-            return new List<string>(new string[] { "Task", "Username","TimeStamp", "ActionType", "ObjectName", "Stacksize", "DropType", "OnPage"});           
+            return new List<string>(new string[] { "Task", "InventorySupported", "Username","TimeStamp", "ActionType", "ObjectName", "Stacksize", "DropType", "OnPage"});           
         }
         string task = "Task" + currentTask;
 		Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
 		string timeStamp = unixTimestamp.ToString ();
-		return new List<string>(new string[] { task, user, timeStamp});
+		return new List<string>(new string[] { task, invSup.ToString() ,user, timeStamp});
 	}
 
     public void SetUserName(string user)

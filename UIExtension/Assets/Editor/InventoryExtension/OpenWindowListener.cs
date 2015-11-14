@@ -33,7 +33,7 @@ public class OpenWindowListener
                     }
                     if (e.control && e.keyCode == KeyCode.RightArrow)
                     {
-                        CSVLogger.NextTask();
+                        csvLog.NextTask();
                         e.Use();
                     }
                     if (e.control && e.keyCode == KeyCode.Delete)

@@ -138,6 +138,7 @@ public class InventoryWindow : EditorWindow
 		}
 		if (GUILayout.Button("Delete Page"))
 		{
+            GUIUtility.keyboardControl = 0;
             csvLog.WriteRow(new List<string>(new string[] { "Delete Page", activePage.GetPageName() }));
             inventoryController.DeletePage(inventoryController.activePageId);
 			OnPageChanged();
@@ -167,6 +168,7 @@ public class InventoryWindow : EditorWindow
 			GUI.Label(boxRect, inventoryController.GetPageName(tabId), tabLabelStyle);
 
 			OnTabClick(evt, boxRect, tabId);
+            OnTabDrop(evt, boxRect, tabId);
 			tabId++;
 		}
 
@@ -224,6 +226,14 @@ public class InventoryWindow : EditorWindow
                 {
                     string borderPath = "Assets/Editor/EditorAssets/border.png";
                     Texture2D border = (Texture2D)AssetDatabase.LoadAssetAtPath(borderPath, typeof(Texture2D));
+                    if (activePage.CheckPositionFilled(boxCount))
+                    {
+                        UnityEditor.Selection.activeObject = activePage.GetInventoryObjectAt(boxCount).obj;
+                    } else
+                    {
+                        UnityEditor.Selection.activeObject = null;
+                    }
+                    
                     GUI.DrawTexture(boxRect, border);
                 }
 
@@ -327,7 +337,7 @@ public class InventoryWindow : EditorWindow
 
     private int DrawTextFieldSliderWidget(float x, float y, Event evt, int maxValue)
     {
-
+        GUIUtility.keyboardControl = 0;
         int sliderValueCheck = (int) GUI.HorizontalSlider(new Rect(popUpX + 40, popUpY + 50, 70, 30), sliderValue, 0, maxValue);
         int dragStackFieldCheck = EditorGUI.IntField(new Rect(popUpX + 10, popUpY + 50, 20, 20), dragStackField);
         int dropStackFieldCheck = EditorGUI.IntField(new Rect(popUpX + 120, popUpY + 50, 20, 20), dropStackField);
@@ -379,6 +389,7 @@ public class InventoryWindow : EditorWindow
     {
         if (evt.type == EventType.MouseDown && boxRect.Contains(evt.mousePosition) && dragStartedInWindow == false && activePage.CheckPositionFilled(number))
         {
+            GUIUtility.keyboardControl = 0;
             UnityEngine.Object[] dragArray = new UnityEngine.Object[1];
             dragArray[0] = activePage.GetInventoryObjectAt(number).obj;
             DragAndDrop.PrepareStartDrag();
@@ -399,6 +410,7 @@ public class InventoryWindow : EditorWindow
         bool isAccepted = false;
         if (evt.type == EventType.DragUpdated && boxRect.Contains(evt.mousePosition) || evt.type == EventType.DragPerform && boxRect.Contains(evt.mousePosition))
         {
+            GUIUtility.keyboardControl = 0;
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
             if (evt.type == EventType.DragPerform)
             {
@@ -431,10 +443,47 @@ public class InventoryWindow : EditorWindow
         }
     }
 
+    private void OnTabDrop(Event evt, Rect boxRect, int tabId)
+    {
+        if (evt.type == EventType.DragUpdated && boxRect.Contains(evt.mousePosition) || evt.type == EventType.DragPerform && boxRect.Contains(evt.mousePosition))
+        {
+            bool isAccepted = false;
+            GUIUtility.keyboardControl = 0;
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            if (evt.type == EventType.DragPerform)
+            {
+                DragAndDrop.AcceptDrag();
+                isAccepted = true;
+            }
+            Event.current.Use();
+
+            if (isAccepted)
+            {
+                
+                
+                if (dragStartedInWindow)
+                {
+                    bool succes = inventoryController.GetPageAt(tabId).AddObjectOnFreeSpace(activePage.GetInventoryObjectAt(dragStartedAt));
+                    if(succes)
+                    {
+                        activePage.DeleteObject(dragStartedAt);
+                    }                    
+                } else
+                {
+                    inventoryController.GetPageAt(tabId).AddObjectOnFreeSpace(new InventoryObject(DragAndDrop.objectReferences[0], 1));
+                }
+
+                dragStartedAt = -1;
+                dragStartedInWindow = false;
+            }
+        }
+    }
+
     private void OnDropSceneGUI(Event evt)
     {
         if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
         {
+            GUIUtility.keyboardControl = 0;
             if (evt.type == EventType.DragPerform)
             {
                 Debug.Log("Drop in scene performed : " + dragStartedInWindow + "at :" + dragStartedAt);
@@ -460,7 +509,7 @@ public class InventoryWindow : EditorWindow
     {
         if (evt.type == EventType.MouseDown && evt.button == 1 && boxRect.Contains(evt.mousePosition))
         {
-
+            GUIUtility.keyboardControl = 0;
             rightClickedBoxId = boxCount;
             GenericMenu menu = new GenericMenu();
             if(activePage.CheckPositionFilled(rightClickedBoxId))
@@ -483,17 +532,15 @@ public class InventoryWindow : EditorWindow
     {
         if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains(evt.mousePosition))
         {
+            GUIUtility.keyboardControl = 0;
             if (activePage.CheckPositionFilled(fieldId))
             {
                 csvLog.WriteRow(new List<string>(new string[] { "Left Click on Object", activePage.GetInventoryObjectAt(fieldId).obj.ToString(), activePage.GetInventoryObjectAt(fieldId).stackSize.ToString(), "-1",activePage.GetPageName() }));
-                UnityEditor.Selection.activeObject = activePage.GetInventoryObjectAt(fieldId).obj;
             }else
             {
-                UnityEditor.Selection.activeObject = null;
                 csvLog.WriteRow(new List<string>(new string[] { "Left Click on EmptyField" }));
+                leftClickedBoxId = fieldId;
             }
-            
-            leftClickedBoxId = fieldId;
             evt.Use();
         }
 
@@ -504,11 +551,13 @@ public class InventoryWindow : EditorWindow
 
         if (evt.type == EventType.KeyDown && evt.keyCode == InventoryController.splitStackKey && stackSplitKeyPressed == false)
         {
+            GUIUtility.keyboardControl = 0;
             stackSplitKeyPressed = true;
             evt.Use();
         }
         if (evt.type == EventType.KeyUp && evt.keyCode == InventoryController.splitStackKey && stackSplitKeyPressed == true)
         {
+            GUIUtility.keyboardControl = 0;
             stackSplitKeyPressed = false;
             evt.Use();
         }
@@ -518,6 +567,7 @@ public class InventoryWindow : EditorWindow
 	{
 		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
 		{
+            GUIUtility.keyboardControl = 0;
             inventoryController.SetActivePage(tabId);
             csvLog.WriteRow(new List<string>(new string[] { "Switched to Bag", inventoryController.GetActivePage().GetPageName() }));
             OnPageChanged();
@@ -528,6 +578,7 @@ public class InventoryWindow : EditorWindow
 	{
 		if (evt.type == EventType.MouseDown && evt.button == 0 && boxRect.Contains (evt.mousePosition)) 
 		{
+            GUIUtility.keyboardControl = 0;
             inventoryController.AddPage();
             csvLog.WriteRow(new List<string>(new string[] { "Added new Bag", inventoryController.GetActivePage().GetPageName() }));
             OnPageChanged();

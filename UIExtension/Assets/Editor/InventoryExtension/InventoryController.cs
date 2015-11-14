@@ -61,6 +61,11 @@ public class InventoryController {
 	{
 		return (InventoryPage)pageList[activePageId];
 	}
+
+    public InventoryPage GetPageAt(int id)
+    {
+        return (InventoryPage)pageList[id];
+    }
 	
 	public void SafePrefs()
 	{
