@@ -14,6 +14,9 @@ public class InventoryPage {
     private InventoryObject[] objectArray;
 	public string pageName;
 
+    private UnityEngine.Object addStackStoreObj;
+    private int addStackPosition;
+
 	public InventoryPage(string pageName, InventoryObject[] objectArray) 
 	{
 		this.pageName = pageName;
@@ -94,6 +97,21 @@ public class InventoryPage {
         }
     }
 
+    public void AddStack(int stackSize)
+    {
+        if (CheckPositionFilled(addStackPosition))
+        {
+            if (objectArray[addStackPosition].Equals(addStackStoreObj))
+            {
+                objectArray[addStackPosition].stackSize += stackSize;
+                return;
+            }
+        }
+        objectArray[addStackPosition] = new InventoryObject(addStackStoreObj, stackSize);
+
+    }
+
+
     public void HandleDropEvent(int dropType, int dragPosition, int dropPosition, UnityEngine.Object dragObj)
     {
         int dragStackSize = InventoryController.standardStackSize;
@@ -128,15 +146,16 @@ public class InventoryPage {
                 }
             case DROP_FROM_EDITOR_OVERRIDE:
                 {
-                    objectArray[dropPosition] = new InventoryObject(dragObj, dragStackSize);
+                    addStackStoreObj = dragObj;
+                    addStackPosition = dropPosition;
+                    InventoryWindow.drawAddStackWindow = true;
                     break;
                 }
             case DROP_FROM_EDITOR_ADD:
                 {
-                    if (InventoryController.stackingEnabled)
-                    {
-                        objectArray[dropPosition].stackSize++;
-                    }
+                    addStackStoreObj = dragObj;
+                    addStackPosition = dropPosition;
+                    InventoryWindow.drawAddStackWindow = true;
                     break;
                 }
             case DROP_FROM_WINDOW_SELF:

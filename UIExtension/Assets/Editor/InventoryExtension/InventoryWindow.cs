@@ -28,6 +28,7 @@ public class InventoryWindow : EditorWindow
     private int rightClickedBoxId;
     private int leftClickedBoxId;
     private int selectedTabId = 0;
+    private static EditorWindow window;
 
     private GUIStyle boxStyle;
     private GUIStyle boxLabelStyle;
@@ -36,7 +37,8 @@ public class InventoryWindow : EditorWindow
     private GUIStyle pageTitleInputStyle;
 	private Texture2D emptyBoxTexture;
 
-    private bool dragStartedInWindow;    
+    private bool dragStartedInWindow;
+    private bool dropPerformed;
     private int dragStartedAt;
 
     private InventoryController inventoryController;
@@ -45,11 +47,14 @@ public class InventoryWindow : EditorWindow
     private bool stackSplitKeyPressed = false;
     private bool drawStackSplitWindow = false;
     private bool stackSplitWindowOpen = false;
+    public static bool drawAddStackWindow = false;
+    private bool addStackWindowOpen = false;
     private float popUpX = 0;
     private float popUpY = 0;
     int sliderValue = 0;
     int dragStackField = 0;
     int dropStackField = 0;
+    private int addStackField = 1;
     int dropPosition = -1;
     int dragPosition = -1;
 
@@ -115,7 +120,7 @@ public class InventoryWindow : EditorWindow
 
     public static void ShowWindow()
     {
-        var window = GetWindow(typeof(InventoryWindow));
+        window = GetWindow(typeof(InventoryWindow));
         window.minSize = new Vector2(windowWidth, windowHeight);
         window.maxSize = new Vector2(windowWidth, windowHeight);
         window.titleContent.text = "Inventory";
@@ -241,6 +246,10 @@ public class InventoryWindow : EditorWindow
                 {
                     DrawStackSplitWindow(evt);
                 }
+                if (drawAddStackWindow)
+                {
+                    DrawAddStackWindow(evt);
+                }
                 OnSplitStackPressed(evt, boxRect, boxCount);
                 OnDrag(evt, boxRect, boxCount);
                 OnDrop(evt, boxRect, boxCount);
@@ -253,6 +262,15 @@ public class InventoryWindow : EditorWindow
         }
 		GUILayout.EndHorizontal ();
         CheckKeyInput(evt);
+        if (evt.type == EventType.DragExited)
+        {
+            OnDropPerformed();
+            if(dragStartedInWindow == true && dropPerformed == false && EditorWindow.mouseOverWindow.Equals(window))
+            {
+                dragStartedInWindow = false;
+                dragStartedAt = -1;
+            }
+        }
     }
 
     public void OnSceneGUI(SceneView sceneView)
@@ -289,8 +307,45 @@ public class InventoryWindow : EditorWindow
         }
     }
 
+    private void DrawAddStackWindow(Event evt)
+    {
+        drawStackSplitWindow = false;
+        if (addStackWindowOpen == false)
+        {
+            addStackWindowOpen = true;
+            popUpX = evt.mousePosition.x;
+            popUpY = evt.mousePosition.y;
+            if (popUpX + stackSplitwindowWidth > windowWidth)
+            {
+                popUpX -= stackSplitwindowWidth;
+            }
+            if (popUpY + stackSplitwindowHeight > windowHeight)
+            {
+                popUpY -= stackSplitwindowHeight;
+            }
+        }        
+
+        Rect addStackBox = new Rect(popUpX, popUpY, stackSplitwindowWidth, stackSplitwindowHeight);
+        GUI.Box(addStackBox, "Add Stack");
+        addStackField = EditorGUI.IntField(new Rect(popUpX + stackSplitwindowWidth/2-10, popUpY + 30, 20, 20), addStackField);
+
+        if (GUI.Button(new Rect(popUpX + 10, popUpY + 80, 60, 20), "OK"))
+        {
+            Debug.Log("ok");
+            activePage.AddStack(addStackField);
+            drawAddStackWindow = false;
+
+        }
+        if (GUI.Button(new Rect(popUpX + 80, popUpY + 80, 60, 20), "Cancel"))
+        {
+            addStackField = 1;
+            drawAddStackWindow = false;
+        }
+    }
+
     private void DrawStackSplitWindow(Event evt)
     {
+        drawAddStackWindow = false;
         int maxValue = activePage.GetInventoryObjectAt(dragPosition).stackSize;
         if (stackSplitWindowOpen == false)
         {
@@ -416,8 +471,9 @@ public class InventoryWindow : EditorWindow
             {
                 DragAndDrop.AcceptDrag();
                 isAccepted = true;
+                Event.current.Use();
             }
-            Event.current.Use();
+           
 
             if (isAccepted)
             {
@@ -436,9 +492,8 @@ public class InventoryWindow : EditorWindow
                 
                 activePage.HandleDropEvent(dropType, dragStartedAt, number, DragAndDrop.objectReferences[0]);
                 
-                dragStartedAt = -1;
-                dragStartedInWindow = false;
                 leftClickedBoxId = number;
+                dropPerformed = true;
             }
         }
     }
@@ -459,8 +514,6 @@ public class InventoryWindow : EditorWindow
 
             if (isAccepted)
             {
-                
-                
                 if (dragStartedInWindow)
                 {
                     bool succes = inventoryController.GetPageAt(tabId).AddObjectOnFreeSpace(activePage.GetInventoryObjectAt(dragStartedAt));
@@ -473,8 +526,7 @@ public class InventoryWindow : EditorWindow
                     inventoryController.GetPageAt(tabId).AddObjectOnFreeSpace(new InventoryObject(DragAndDrop.objectReferences[0], 1));
                 }
 
-                dragStartedAt = -1;
-                dragStartedInWindow = false;
+                dropPerformed = true;
             }
         }
     }
@@ -484,23 +536,22 @@ public class InventoryWindow : EditorWindow
         if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
         {
             GUIUtility.keyboardControl = 0;
+            Debug.Log("in on scenedrop");
+            
             if (evt.type == EventType.DragPerform)
             {
-                Debug.Log("Drop in scene performed : " + dragStartedInWindow + "at :" + dragStartedAt);
                 if (dragStartedInWindow == true)
                 {
-                    Debug.Log("Decrement stack");
                     if (activePage.CheckPositionFilled(dragStartedAt))
                     {
                         csvLog.WriteRow(new List<string>(new string[] { "Drop Object from Window in Scene", activePage.GetInventoryObjectAt(dragStartedAt).obj.ToString(), activePage.GetInventoryObjectAt(dragStartedAt).stackSize.ToString(), "-1", activePage.GetPageName() }));
                     }
                     activePage.DecrementStack(dragStartedAt);
                     this.Repaint();
-                    dragStartedAt = -1;
-                    dragStartedInWindow = false;
                 }
+                dropPerformed = true;
+                OnDropPerformed();
             }
-          
         }
     }
 
@@ -526,6 +577,17 @@ public class InventoryWindow : EditorWindow
 
             evt.Use();
         }
+    }
+
+    private void OnDropPerformed()
+    {
+        if(dropPerformed == true)
+        {
+            Debug.Log("exited");
+            dragStartedAt = -1;
+            dragStartedInWindow = false;
+            dropPerformed = false;
+        }        
     }
 
     private void OnLeftClick(Event evt, Rect boxRect, int fieldId)
